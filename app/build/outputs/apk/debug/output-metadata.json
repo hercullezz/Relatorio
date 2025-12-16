@@ -1,0 +1,25 @@
+{
+  "version": 3,
+  "artifactType": {
+    "type": "APK",
+    "kind": "Directory"
+  },
+  "applicationId": "com.example.relatoriomanutencao",
+  "variantName": "debug",
+  "elements": [
+    {
+      "type": "SINGLE",
+      "filters": [],
+      "attributes": [],
+      "versionCode": 1,
+      "versionName": "1.0",
+      "outputFile": "app-debug.apk"
+    }
+  ],
+  "elementType": "File",
+<<<<<<< HEAD
+  "minSdkVersionForDexing": 26
+=======
+  "minSdkVersionForDexing": 24
+>>>>>>> f969efbb0a5b1a468ff385c3f3c78fc47956aa19
+}

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <include domain="sharedpref" path="."/>
+    <include domain="database" path="."/>
+<<<<<<< HEAD
+</full-backup-content>
+=======
+</full-backup-content>
+>>>>>>> f969efbb0a5b1a468ff385c3f3c78fc47956aa19

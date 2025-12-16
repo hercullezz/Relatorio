@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "470019097310",
+    "project_id": "relatorio-de-manutencao-738fb",
+    "storage_bucket": "relatorio-de-manutencao-738fb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:470019097310:android:bffa925000a0db95b7384f",
+        "android_client_info": {
+          "package_name": "com.example.relatoriomanutencao"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBIYCbXt9PN1cKrHqTI-17EY3HLduL9MjI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

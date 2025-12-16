@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+<<<<<<< HEAD
+    <style name="Theme.Relatorio" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
+=======
+    <style name="Theme.RelatorioManutencao" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
+>>>>>>> f969efbb0a5b1a468ff385c3f3c78fc47956aa19
