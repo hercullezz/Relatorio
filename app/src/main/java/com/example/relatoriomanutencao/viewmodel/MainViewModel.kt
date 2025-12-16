@@ -1,10 +1,7 @@
 package com.example.relatoriomanutencao.viewmodel
 
 import android.app.Application
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
-import android.util.Base64
 import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
@@ -15,6 +12,7 @@ import com.example.relatoriomanutencao.data.MachineConfigurationRepository
 import com.example.relatoriomanutencao.data.MaintenanceItem
 import com.example.relatoriomanutencao.data.ProductionLine
 import com.example.relatoriomanutencao.data.StockItem
+import com.example.relatoriomanutencao.utils.CloudinaryHelper
 import com.example.relatoriomanutencao.utils.CsvImporter
 import com.parse.ParseCloud
 import com.parse.ParseFile
@@ -30,13 +28,11 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.ByteArrayOutputStream
 
 @OptIn(FlowPreview::class)
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val database = AppDatabase.getDatabase(application)
-    private val stockDao = database.stockDao()
     private val machineConfigRepository = MachineConfigurationRepository(
         database.productionLineDao(),
         database.machineDao()
@@ -82,7 +78,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     
-    // --- MANUTENÇÃO (BACK4APP) ---
+    // --- MANUTENÇÃO (BACK4APP + CLOUDINARY) ---
     
     fun refreshMaintenanceList() {
         viewModelScope.launch(Dispatchers.IO) {
@@ -94,8 +90,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val results = query.find()
                 
                 val items = results.map { obj ->
-                    val photos = obj.getList<ParseFile>("photos")
-                    val photoUrls = photos?.joinToString(",") { it.url } ?: ""
+                    // 1. Fotos Antigas (Arquivos do Back4App)
+                    val legacyPhotos = obj.getList<ParseFile>("photos")
+                    val legacyUrls = legacyPhotos?.mapNotNull { it.url } ?: emptyList()
+                    
+                    // 2. Novas Fotos (Links do Cloudinary)
+                    val externalPhotos = obj.getList<String>("external_photos") ?: emptyList()
+                    
+                    // Junta tudo
+                    val allPhotoUrls = (legacyUrls + externalPhotos).joinToString(",")
 
                     MaintenanceItem(
                         id = 0, 
@@ -103,7 +106,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         serviceType = obj.getString("type") ?: "",
                         description = obj.getString("description") ?: "",
                         date = obj.createdAt.time,
-                        photoUris = photoUrls 
+                        photoUris = allPhotoUrls 
                     )
                 }
                 _maintenanceItems.value = items
@@ -117,27 +120,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
             try {
-                val serviceData = hashMapOf(
-                    "machine" to machine,
-                    "type" to serviceType,
-                    "description" to description
-                )
-                val photosAsBase64 = processPhotos(photoUris)
-                val params = hashMapOf(
-                    "serviceData" to serviceData,
-                    "photosAsBase64" to photosAsBase64
-                )
-
-                withContext(Dispatchers.Main) { Toast.makeText(getApplication(), "Enviando...", Toast.LENGTH_SHORT).show() }
-
-                ParseCloud.callFunction<Any>("saveServiceWithPhotos", params)
+                val uploadedUrls = uploadPhotosToCloudinary(photoUris)
+                
+                val serviceObject = ParseObject("Servico")
+                serviceObject.put("machine", machine)
+                serviceObject.put("type", serviceType)
+                serviceObject.put("description", description)
+                
+                // Salva apenas os links no novo campo
+                if (uploadedUrls.isNotEmpty()) {
+                    serviceObject.put("external_photos", uploadedUrls)
+                }
+                
+                serviceObject.save()
 
                 withContext(Dispatchers.Main) {
                     Toast.makeText(getApplication(), "Serviço salvo!", Toast.LENGTH_SHORT).show()
                     refreshMaintenanceList() 
                 }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) { Toast.makeText(getApplication(), "Erro: ${e.message}", Toast.LENGTH_LONG).show() }
+                withContext(Dispatchers.Main) { 
+                    Log.e("AddService", "Erro", e)
+                    Toast.makeText(getApplication(), "Erro: ${e.message}", Toast.LENGTH_LONG).show() 
+                }
             } finally {
                 _isLoading.value = false
             }
@@ -154,44 +159,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val results = query.find()
                 
                 if (results.isNotEmpty()) {
-                    // Encontra o objeto correto (pela data mais próxima)
                     val parseObject = results.minByOrNull { Math.abs(it.createdAt.time - originalItem.date) }
                     
                     if (parseObject != null) {
                         parseObject.put("description", newDescription)
                         
-                        // --- Lógica de Atualização de Fotos ---
+                        // Separa o que é link existente do que é foto nova
                         val allUris = newPhotoUris.split(",").filter { it.isNotBlank() }
                         
-                        // 1. Fotos Antigas (URLs do Back4App) que devem ser MANTIDAS
-                        val keptUrls = allUris.filter { it.startsWith("http") }
+                        // Links que já existem (seja Back4App antigo ou Cloudinary já salvo)
+                        val existingLinks = allUris.filter { it.startsWith("http") }
                         
-                        // 2. Fotos Novas (URIs Locais) que devem ser ENVIADAS
+                        // Novas fotos locais para subir
                         val newLocalUris = allUris.filter { !it.startsWith("http") }
-
-                        // Recupera as fotos que já existem no objeto
-                        val currentParseFiles = parseObject.getList<ParseFile>("photos") ?: emptyList()
                         
-                        // Filtra a lista do servidor para manter apenas as que ainda estão na lista 'keptUrls'
-                        val updatedParseFiles = currentParseFiles.filter { pf -> 
-                            keptUrls.any { url -> url.contains(pf.name) || pf.url == url } 
-                        }.toMutableList()
+                        // Faz upload das novas
+                        val newUploadedUrls = uploadPhotosToCloudinary(newLocalUris.joinToString(","))
                         
-                        // Processa e sobe as novas fotos
-                        if (newLocalUris.isNotEmpty()) {
-                             withContext(Dispatchers.Main) { Toast.makeText(getApplication(), "Enviando novas fotos...", Toast.LENGTH_SHORT).show() }
-                             
-                             for (uriString in newLocalUris) {
-                                 val bytes = getBytesFromUri(uriString)
-                                 if (bytes != null) {
-                                     val file = ParseFile("photo_${System.currentTimeMillis()}.jpg", bytes)
-                                     file.save() // Upload síncrono
-                                     updatedParseFiles.add(file)
-                                 }
-                             }
-                        }
+                        // Lista Final para o campo 'external_photos':
+                        // Mantemos os links do Cloudinary que já existiam + os novos uploads.
+                        // Obs: Não mexemos no campo legado 'photos' do Back4App, ele fica lá quieto (read-only).
                         
-                        parseObject.put("photos", updatedParseFiles)
+                        // Filtra para pegar apenas os links que parecem ser do Cloudinary ou externos (não os do Back4App legacy)
+                        // Se o usuário remover uma foto legacy, ela vai sumir da UI, mas não deletamos o arquivo físico no Back4App para evitar complexidade agora.
+                        
+                        val finalExternalList = existingLinks.filter { !it.contains("back4app") } + newUploadedUrls
+                        
+                        parseObject.put("external_photos", finalExternalList)
                         parseObject.save()
                         
                         withContext(Dispatchers.Main) {
@@ -203,52 +197,41 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     withContext(Dispatchers.Main) { Toast.makeText(getApplication(), "Serviço original não encontrado.", Toast.LENGTH_SHORT).show() }
                 }
             } catch (e: Exception) {
-                 withContext(Dispatchers.Main) { Toast.makeText(getApplication(), "Erro: ${e.message}", Toast.LENGTH_SHORT).show() }
+                 withContext(Dispatchers.Main) { 
+                    Log.e("UpdateService", "Erro", e)
+                    Toast.makeText(getApplication(), "Erro: ${e.message}", Toast.LENGTH_SHORT).show() 
+                 }
             } finally {
                 _isLoading.value = false
             }
         }
     }
     
-    private fun getBytesFromUri(uriString: String): ByteArray? {
-        return try {
-            val uri = Uri.parse(uriString)
-            val inputStream = getApplication<Application>().contentResolver.openInputStream(uri)
-            val bitmap = BitmapFactory.decodeStream(inputStream)
-            inputStream?.close()
-            
-            if (bitmap != null) {
-                val outputStream = ByteArrayOutputStream()
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 70, outputStream)
-                outputStream.toByteArray()
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            Log.e("Upload", "Erro ao converter imagem: $uriString", e)
-            null
-        }
-    }
-    
-    private fun processPhotos(photoUris: String): ArrayList<HashMap<String, String>> {
-        val photosAsBase64 = ArrayList<HashMap<String, String>>()
+    private suspend fun uploadPhotosToCloudinary(photoUris: String): List<String> {
+        val urls = mutableListOf<String>()
         val uriList = photoUris.split(",").filter { it.isNotBlank() }
-        for (uriString in uriList) {
-            try {
-                if (uriString.startsWith("http")) continue
-                val byteArr = getBytesFromUri(uriString)
-                if (byteArr != null) {
-                    val base64String = Base64.encodeToString(byteArr, Base64.NO_WRAP)
-                    photosAsBase64.add(hashMapOf(
-                        "name" to "photo_${System.currentTimeMillis()}.jpg",
-                        "base64" to base64String
-                    ))
-                }
-            } catch (e: Exception) {
-                Log.e("Upload", "Erro ao processar imagem: $uriString", e)
+        
+        if (uriList.isNotEmpty()) {
+            withContext(Dispatchers.Main) {
+                Toast.makeText(getApplication(), "Enviando fotos para Cloudinary...", Toast.LENGTH_SHORT).show()
             }
         }
-        return photosAsBase64
+        
+        for (uriString in uriList) {
+            if (uriString.startsWith("http")) {
+                urls.add(uriString) // Já é URL
+                continue
+            }
+            
+            try {
+                val uri = Uri.parse(uriString)
+                val url = CloudinaryHelper.uploadImage(getApplication(), uri)
+                urls.add(url)
+            } catch (e: Exception) {
+                Log.e("Cloudinary", "Falha ao enviar imagem $uriString", e)
+            }
+        }
+        return urls
     }
 
     fun deleteMaintenanceItem(item: MaintenanceItem) {
