@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import android.net.Uri
@@ -176,9 +177,7 @@ object PdfGenerator {
                     yPosition += 20
 
                     for (item in maintenanceList) {
-                        // --- Correção Word Wrap ---
-                        // Calcula quantas linhas o texto vai ocupar baseado na largura disponível
-                        // em vez de cortar arbitrariamente
+                        // --- Word Wrap (Texto fluído) ---
                         val maxWidth = CONTENT_WIDTH - 20 // Margem interna
                         val descLines = breakTextIntoLines(item.description, paintTextNormal, maxWidth)
                         
@@ -216,23 +215,28 @@ object PdfGenerator {
                         if (hasPhotos) {
                             yPosition += 5
                             
-                            // Tamanho fixo para cada miniatura
-                            val targetWidth = 150
-                            val targetHeight = 100
+                            // Tamanho do layout na página (Pontos PDF)
+                            val destWidth = 150f
+                            val destHeight = 100f
                             var currentX = MARGIN + 10f
                             
                             for (uriString in photoUris) {
                                 val bitmap = getBitmapFromUrlOrUri(context, uriString)
                                 if (bitmap != null) {
                                     try {
-                                        val scaledBitmap = Bitmap.createScaledBitmap(bitmap, targetWidth, targetHeight, true)
-                                        canvas.drawBitmap(scaledBitmap, currentX, yPosition, null)
+                                        // Correção: Não redimensiona o bitmap (pixel loss).
+                                        // Define um retângulo de destino e desenha o bitmap original (High Res) nele.
+                                        val dstRect = RectF(currentX, yPosition, currentX + destWidth, yPosition + destHeight)
+                                        canvas.drawBitmap(bitmap, null, dstRect, null)
+                                        
+                                        // Libera memória se possível, já que desenhamos
+                                        bitmap.recycle()
                                     } catch (e: Exception) {
                                         e.printStackTrace()
                                     }
                                 }
                                 // Avança X para a próxima foto (largura + 10px de espaçamento)
-                                currentX += targetWidth + 10
+                                currentX += destWidth + 10
                             }
                             
                             yPosition += photosRowHeight
@@ -289,8 +293,6 @@ object PdfGenerator {
                 if (currentLine.isNotEmpty()) {
                     lines.add(currentLine.toString())
                 }
-                // Se a palavra sozinha for maior que a largura (caso raro), ela será cortada ou quebrada
-                // Mas aqui reiniciamos a linha com ela
                 currentLine.setLength(0)
                 currentLine.append(word)
             }
@@ -300,10 +302,9 @@ object PdfGenerator {
             lines.add(currentLine.toString())
         }
         
-        // Tratamento para quebras de linha manuais (\n) inseridas pelo usuário
+        // Tratamento para quebras de linha manuais (\n)
         val finalLines = mutableListOf<String>()
         for (line in lines) {
-            // Se houver \n dentro do bloco processado, quebra novamente
             if (line.contains("\n")) {
                 finalLines.addAll(line.split("\n"))
             } else {
@@ -326,7 +327,7 @@ object PdfGenerator {
             color = Color.DKGRAY
         }
         
-        // Título (Nome da Linha)
+        // Título
         canvas.drawText(item.machine, x, y, paintTextBold)
         
         // Imagem
@@ -336,23 +337,22 @@ object PdfGenerator {
             val bitmap = getBitmapFromUrlOrUri(context, imgUrl)
             
             if (bitmap != null) {
-                // Área da imagem: Largura fixa (metade da página - margem), Altura fixa (150)
-                val targetWidth = 230
-                val targetHeight = 150
+                // Layout size
+                val destWidth = 230f
+                val destHeight = 150f
                 
-                // Scale to fit
-                val scaledBitmap = Bitmap.createScaledBitmap(bitmap, targetWidth, targetHeight, true)
-                canvas.drawBitmap(scaledBitmap, x, y + 10, null)
+                // Desenha High Res no retângulo definido
+                val dstRect = RectF(x, y + 10, x + destWidth, y + 10 + destHeight)
+                canvas.drawBitmap(bitmap, null, dstRect, null)
+                bitmap.recycle()
             } else {
                 canvas.drawText("[Imagem não carregada]", x, y + 50, paintTextSmall)
             }
         }
         
-        // Obs (se houver)
+        // Obs
         if (item.description.isNotBlank() && item.description != "Registro de Gráfico de Produção") {
-             // Também aplica wrap no gráfico para não cortar
              val wrappedDesc = breakTextIntoLines(item.description, paintTextSmall, 230f)
-             // Pega só as primeiras 2 linhas para não estourar layout
              var textY = y + 170
              wrappedDesc.take(2).forEach { line ->
                  canvas.drawText(line, x, textY, paintTextSmall)
@@ -363,17 +363,17 @@ object PdfGenerator {
     
     // Tenta carregar imagem da URL (Nuvem) ou URI (Local - Cache)
     private fun getBitmapFromUrlOrUri(context: Context, path: String): Bitmap? {
-        // Log para debug
         Log.d("PdfGenerator", "Tentando baixar imagem: $path")
         return try {
             if (path.startsWith("http")) {
                 val url = URL(path)
                 val connection = url.openConnection() as HttpURLConnection
                 connection.doInput = true
-                connection.connectTimeout = 5000 // 5 segundos de timeout
+                connection.connectTimeout = 5000 
                 connection.readTimeout = 5000
                 connection.connect()
                 val input: InputStream = connection.inputStream
+                // Decodifica a imagem original (tamanho completo)
                 val bitmap = BitmapFactory.decodeStream(input)
                 input.close()
                 bitmap
