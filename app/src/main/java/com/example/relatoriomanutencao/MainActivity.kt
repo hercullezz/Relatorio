@@ -4,7 +4,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
-<<<<<<< HEAD
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -35,42 +34,23 @@ import com.example.relatoriomanutencao.ui.NewMaintenanceScreen
 import com.example.relatoriomanutencao.ui.SavedReportsScreen
 import com.example.relatoriomanutencao.ui.ServicesListScreen
 import com.example.relatoriomanutencao.ui.StockScreen
-import com.example.relatoriomanutencao.ui.theme.RelatorioTheme
-import com.example.relatoriomanutencao.viewmodel.MainViewModel
-=======
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.example.relatoriomanutencao.ui.AppNavigation
 import com.example.relatoriomanutencao.ui.theme.RelatorioManutencaoTheme
->>>>>>> f969efbb0a5b1a468ff385c3f3c78fc47956aa19
+import com.example.relatoriomanutencao.viewmodel.MainViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-<<<<<<< HEAD
-            RelatorioTheme(darkTheme = true) { // Enforcing Dark Mode as requested
-=======
-            RelatorioManutencaoTheme {
->>>>>>> f969efbb0a5b1a468ff385c3f3c78fc47956aa19
+            RelatorioManutencaoTheme { 
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-<<<<<<< HEAD
                     MainApp()
-=======
-                    AppNavigation()
->>>>>>> f969efbb0a5b1a468ff385c3f3c78fc47956aa19
                 }
             }
         }
     }
-<<<<<<< HEAD
 }
 
 @Composable
@@ -173,6 +153,3 @@ fun MainApp() {
         }
     }
 }
-=======
-}
->>>>>>> f969efbb0a5b1a468ff385c3f3c78fc47956aa19

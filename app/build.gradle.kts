@@ -1,7 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("kotlin-kapt")
+    id("com.google.devtools.ksp")
 }
 
 android {
@@ -20,6 +20,10 @@ android {
             useSupportLibrary = true
         }
         multiDexEnabled = true
+        
+        ksp {
+            arg("room.schemaLocation", "$projectDir/schemas")
+        }
     }
 
     buildTypes {
@@ -34,23 +38,12 @@ android {
     }
     kotlinOptions {
         jvmTarget = "17"
-        freeCompilerArgs += listOf(
-            "-Xjvm-default=all",
-            "-opt-in=kotlin.RequiresOptIn"
-        )
-    }
-    kapt {
-        correctErrorTypes = true
-        useBuildCache = false
-        javacOptions {
-            option("-Xmaxerrs", 1000)
-        }
     }
     buildFeatures {
         compose = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.14"
+        kotlinCompilerExtensionVersion = "1.5.1"
     }
     packaging {
         resources {
@@ -84,12 +77,12 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
     implementation("androidx.navigation:navigation-compose:2.7.7")
     
-    // Room (Banco de dados local para cache)
+    // Room
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
-    kapt("androidx.room:room-compiler:2.6.1")
+    ksp("androidx.room:room-compiler:2.6.1")
 
-    // Coil (Imagens da Web)
+    // Coil
     implementation("io.coil-kt:coil-compose:2.5.0")
     
     // Back4App / Parse
@@ -98,7 +91,10 @@ dependencies {
     // Cloudinary
     implementation("com.cloudinary:cloudinary-android:2.5.0")
 
-    // Excel (Apache POI)
+    // Google Play Services Auth (Para o Login do Google)
+    implementation("com.google.android.gms:play-services-auth:20.7.0")
+
+    // Excel
     implementation("org.apache.poi:poi:5.2.5")
     implementation("org.apache.poi:poi-ooxml:5.2.5")
     implementation("com.fasterxml:aalto-xml:1.2.2")

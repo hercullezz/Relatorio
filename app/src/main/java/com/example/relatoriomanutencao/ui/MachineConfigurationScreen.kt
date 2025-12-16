@@ -1,14 +1,9 @@
 package com.example.relatoriomanutencao.ui
 
-<<<<<<< HEAD
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
-=======
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
->>>>>>> f969efbb0a5b1a468ff385c3f3c78fc47956aa19
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -16,7 +11,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.Add
-<<<<<<< HEAD
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Refresh
@@ -29,15 +23,6 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-=======
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.* // Importa todos os componentes Material3
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
->>>>>>> f969efbb0a5b1a468ff385c3f3c78fc47956aa19
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.relatoriomanutencao.data.Machine
@@ -54,30 +39,10 @@ fun MachineConfigurationScreen(
     val machinesWithoutLine by viewModel.machinesWithoutLine.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
-    // Estados para adicionar/editar linha
+    // Estados para adicionar/editar
     var showAddLineDialog by remember { mutableStateOf(false) }
     var showAddMachineDialog by remember { mutableStateOf(false) }
     var selectedLineForMachine by remember { mutableStateOf<ProductionLine?>(null) }
-
-    // Estados para exclusão de linha
-    var showDeleteLineDialog by remember { mutableStateOf(false) }
-    var lineToDeleteId by remember { mutableStateOf<String?>(null) }
-    var lineToDeleteName by remember { mutableStateOf<String?>(null) }
-
-    // Estados para edição de linha
-    var showEditLineDialog by remember { mutableStateOf(false) }
-    var lineToEdit by remember { mutableStateOf<Line?>(null) }
-    var lineEditName by remember { mutableStateOf("") }
-
-    // Estados para gerenciamento de máquinas
-    var showAddMachineDialog by remember { mutableStateOf(false) }
-    var showEditMachineDialog by remember { mutableStateOf(false) }
-    var showDeleteMachineDialog by remember { mutableStateOf(false) }
-
-    var currentLineForMachineAction by remember { mutableStateOf<Line?>(null) }
-    var machineToEditOrDelete by remember { mutableStateOf<String?>(null) }
-    var newMachineName by remember { mutableStateOf("") }
-    var oldMachineName by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
@@ -326,14 +291,10 @@ fun ProductionLineItem(
                             contentDescription = "Deletar Linha", 
                             tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
                         )
-                        Button(onClick = { viewModel.clearError() }) {
-                            Text("Ok")
-                        }
                     }
                 }
             }
 
-<<<<<<< HEAD
             AnimatedVisibility(visible = expanded) {
                 Column {
                     HorizontalDivider(
@@ -345,54 +306,6 @@ fun ProductionLineItem(
                         machines.forEach { machine ->
                             MachineItem(machine = machine, onDelete = { onDeleteMachine(machine) })
                             Spacer(modifier = Modifier.height(8.dp))
-=======
-            LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                items(lines) { line ->
-                    LineItem(
-                        line = line,
-                        viewModel = viewModel,
-                        onDeleteLineLongClick = { 
-                            lineToDeleteId = line.id
-                            lineToDeleteName = line.name
-                            showDeleteLineDialog = true
-                        },
-                        onEditLineClick = { 
-                            lineToEdit = line
-                            lineEditName = line.name
-                            showEditLineDialog = true
-                        },
-                        onAddMachineClick = { 
-                            currentLineForMachineAction = line
-                            newMachineName = ""
-                            showAddMachineDialog = true
-                        },
-                        onEditMachineClick = { selectedLine, oldName -> 
-                            currentLineForMachineAction = selectedLine
-                            oldMachineName = oldName
-                            newMachineName = oldName
-                            showEditMachineDialog = true
-                        },
-                        onDeleteMachineClick = { selectedLine, name -> 
-                            currentLineForMachineAction = selectedLine
-                            machineToEditOrDelete = name
-                            showDeleteMachineDialog = true
-                        }
-                    )
-                }
-
-                if (lines.isEmpty() && !isLoading && error == null) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "Nenhuma linha configurada.\nClique no + para adicionar uma nova.",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
->>>>>>> f969efbb0a5b1a468ff385c3f3c78fc47956aa19
                         }
                     } else {
                          Text(
@@ -417,251 +330,11 @@ fun ProductionLineItem(
                 }
             }
         }
-<<<<<<< HEAD
-=======
-
-        // Diálogo para adicionar nova linha
-        if (showAddLineDialog) {
-            AlertDialog(
-                onDismissRequest = { showAddLineDialog = false },
-                title = { Text("Adicionar Nova Linha") },
-                text = {
-                    OutlinedTextField(
-                        value = newLineEditName,
-                        onValueChange = { newLineEditName = it },
-                        label = { Text("Nome da Linha") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            if (newLineEditName.isNotBlank()) {
-                                viewModel.addLine(newLineEditName)
-                                newLineEditName = ""
-                                showAddLineDialog = false
-                            }
-                        }
-                    ) {
-                        Text("Adicionar")
-                    }
-                },
-                dismissButton = {
-                    Button(onClick = { 
-                        newLineEditName = ""
-                        showAddLineDialog = false 
-                    }) {
-                        Text("Cancelar")
-                    }
-                }
-            )
-        }
-
-        // Diálogo de confirmação de exclusão de linha
-        if (showDeleteLineDialog) { // <-- Variável correta usada aqui
-            AlertDialog(
-                onDismissRequest = { showDeleteLineDialog = false },
-                title = { Text("Confirmar Exclusão de Linha") },
-                text = { Text("Você tem certeza que deseja excluir a linha '${lineToDeleteName}' e todas as suas máquinas?") },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            lineToDeleteId?.let { id ->
-                                viewModel.deleteLine(id)
-                            }
-                            showDeleteLineDialog = false // <-- Correção aqui
-                            lineToDeleteId = null
-                            lineToDeleteName = null
-                        }
-                    ) {
-                        Text("Excluir")
-                    }
-                },
-                dismissButton = {
-                    Button(onClick = { 
-                        showDeleteLineDialog = false // <-- Correção aqui
-                        lineToDeleteId = null
-                        lineToDeleteName = null
-                    }) {
-                        Text("Cancelar")
-                    }
-                }
-            )
-        }
-
-        // Diálogo para editar nome da linha
-        if (showEditLineDialog) {
-            AlertDialog(
-                onDismissRequest = { showEditLineDialog = false },
-                title = { Text("Editar Linha") },
-                text = {
-                    OutlinedTextField(
-                        value = lineEditName,
-                        onValueChange = { lineEditName = it },
-                        label = { Text("Nome da Linha") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            lineToEdit?.let { line ->
-                                if (lineEditName.isNotBlank() && lineEditName != line.name) {
-                                    viewModel.updateLine(line.copy(name = lineEditName))
-                                }
-                            }
-                            showEditLineDialog = false
-                            lineToEdit = null
-                            lineEditName = ""
-                        }
-                    ) {
-                        Text("Salvar")
-                    }
-                },
-                dismissButton = {
-                    Button(onClick = { 
-                        showEditLineDialog = false
-                        lineToEdit = null
-                        lineEditName = ""
-                    }) {
-                        Text("Cancelar")
-                    }
-                }
-            )
-        }
-
-        // Diálogo para adicionar máquina
-        if (showAddMachineDialog) {
-            AlertDialog(
-                onDismissRequest = { showAddMachineDialog = false },
-                title = { Text("Adicionar Máquina a ${currentLineForMachineAction?.name}") },
-                text = {
-                    OutlinedTextField(
-                        value = newMachineName,
-                        onValueChange = { newMachineName = it },
-                        label = { Text("Nome da Máquina") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            currentLineForMachineAction?.let { line ->
-                                if (newMachineName.isNotBlank()) {
-                                    viewModel.addMachineToLine(line.id, newMachineName)
-                                }
-                            }
-                            showAddMachineDialog = false
-                            newMachineName = ""
-                            currentLineForMachineAction = null
-                        }
-                    ) {
-                        Text("Adicionar")
-                    }
-                },
-                dismissButton = {
-                    Button(onClick = { 
-                        showAddMachineDialog = false
-                        newMachineName = ""
-                        currentLineForMachineAction = null
-                    }) {
-                        Text("Cancelar")
-                    }
-                }
-            )
-        }
-
-        // Diálogo para editar máquina
-        if (showEditMachineDialog) {
-            AlertDialog(
-                onDismissRequest = { showEditMachineDialog = false },
-                title = { Text("Editar Máquina em ${currentLineForMachineAction?.name}") },
-                text = {
-                    OutlinedTextField(
-                        value = newMachineName,
-                        onValueChange = { newMachineName = it },
-                        label = { Text("Novo Nome da Máquina") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            currentLineForMachineAction?.let { line ->
-                                machineToEditOrDelete?.let { old ->
-                                    if (newMachineName.isNotBlank() && newMachineName != old) {
-                                        viewModel.editMachineInLine(line.id, old, newMachineName)
-                                    }
-                                }
-                            }
-                            showEditMachineDialog = false
-                            newMachineName = ""
-                            oldMachineName = ""
-                            machineToEditOrDelete = null
-                            currentLineForMachineAction = null
-                        }
-                    ) {
-                        Text("Salvar")
-                    }
-                },
-                dismissButton = {
-                    Button(onClick = { 
-                        showEditMachineDialog = false
-                        newMachineName = ""
-                        oldMachineName = ""
-                        machineToEditOrDelete = null
-                        currentLineForMachineAction = null
-                    }) {
-                        Text("Cancelar")
-                    }
-                }
-            )
-        }
-
-        // Diálogo de confirmação de exclusão de máquina
-        if (showDeleteMachineDialog) {
-            AlertDialog(
-                onDismissRequest = { showDeleteMachineDialog = false },
-                title = { Text("Confirmar Exclusão de Máquina") },
-                text = { Text("Você tem certeza que deseja excluir a máquina '${machineToEditOrDelete}' da linha '${currentLineForMachineAction?.name}'?") },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            currentLineForMachineAction?.let { line ->
-                                machineToEditOrDelete?.let { machineName ->
-                                    viewModel.removeMachineFromLine(line.id, machineName)
-                                }
-                            }
-                            showDeleteMachineDialog = false
-                            machineToEditOrDelete = null
-                            currentLineForMachineAction = null
-                        }
-                    ) {
-                        Text("Excluir")
-                    }
-                },
-                dismissButton = {
-                    Button(onClick = { 
-                        showDeleteMachineDialog = false
-                        machineToEditOrDelete = null
-                        currentLineForMachineAction = null
-                    }) {
-                        Text("Cancelar")
-                    }
-                }
-            )
-        }
->>>>>>> f969efbb0a5b1a468ff385c3f3c78fc47956aa19
     }
-} // Corrigido: Adicionada a chave de fechamento que faltava para o Scaffold
+}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-<<<<<<< HEAD
 fun MachineItem(
     machine: Machine,
     onDelete: () -> Unit
@@ -702,74 +375,6 @@ fun MachineItem(
                     contentDescription = "Deletar Máquina", 
                     tint = MaterialTheme.colorScheme.error
                 )
-=======
-fun LineItem(
-    line: Line,
-    viewModel: MachineConfigurationViewModel,
-    onDeleteLineLongClick: (Line) -> Unit,
-    onEditLineClick: (Line) -> Unit,
-    onAddMachineClick: (Line) -> Unit,
-    onEditMachineClick: (Line, String) -> Unit,
-    onDeleteMachineClick: (Line, String) -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp)
-            .combinedClickable(
-                onClick = { /* Não faz nada com clique simples na linha por enquanto */ },
-                onLongClick = { onDeleteLineLongClick(line) }
-            ),
-        elevation = CardDefaults.cardElevation(2.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(text = line.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Row {
-                    IconButton(onClick = { onEditLineClick(line) }) {
-                        Icon(Icons.Default.Edit, contentDescription = "Editar Linha")
-                    }
-                    IconButton(onClick = { onDeleteLineLongClick(line) }) { // Ícone de lixeira para exclusão rápida/alternativa
-                        Icon(Icons.Default.Delete, contentDescription = "Excluir Linha")
-                    }
-                    IconButton(onClick = { onAddMachineClick(line) }) {
-                        Icon(Icons.Default.Add, contentDescription = "Adicionar Máquina")
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            if (line.machines.isNotEmpty()) {
-                Text("Máquinas:", style = MaterialTheme.typography.bodySmall)
-                Spacer(modifier = Modifier.height(4.dp))
-                Column(modifier = Modifier.padding(start = 8.dp)) {
-                    line.machines.forEach { machine ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "- $machine",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Row {
-                                IconButton(onClick = { onEditMachineClick(line, machine) }) {
-                                    Icon(Icons.Default.Edit, contentDescription = "Editar Máquina")
-                                }
-                                IconButton(onClick = { onDeleteMachineClick(line, machine) }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Excluir Máquina")
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
-                Text("Nenhuma máquina nesta linha.", style = MaterialTheme.typography.bodySmall)
->>>>>>> f969efbb0a5b1a468ff385c3f3c78fc47956aa19
             }
         }
     }

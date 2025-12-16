@@ -25,27 +25,10 @@ private val LightColorScheme = lightColorScheme(
     primary = Purple40,
     secondary = PurpleGrey40,
     tertiary = Pink40
-<<<<<<< HEAD
-)
-
-@Composable
-fun RelatorioTheme(
-=======
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
 )
 
 @Composable
 fun RelatorioManutencaoTheme(
->>>>>>> f969efbb0a5b1a468ff385c3f3c78fc47956aa19
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
@@ -56,10 +39,6 @@ fun RelatorioManutencaoTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-<<<<<<< HEAD
-=======
-
->>>>>>> f969efbb0a5b1a468ff385c3f3c78fc47956aa19
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
@@ -77,8 +56,4 @@ fun RelatorioManutencaoTheme(
         typography = Typography,
         content = content
     )
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> f969efbb0a5b1a468ff385c3f3c78fc47956aa19
