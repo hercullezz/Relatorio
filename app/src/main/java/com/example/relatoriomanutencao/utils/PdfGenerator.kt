@@ -176,7 +176,12 @@ object PdfGenerator {
                     yPosition += 20
 
                     for (item in maintenanceList) {
-                        val descLines = item.description.chunked(95)
+                        // --- Correção Word Wrap ---
+                        // Calcula quantas linhas o texto vai ocupar baseado na largura disponível
+                        // em vez de cortar arbitrariamente
+                        val maxWidth = CONTENT_WIDTH - 20 // Margem interna
+                        val descLines = breakTextIntoLines(item.description, paintTextNormal, maxWidth)
+                        
                         val heightNeeded = 20f + (descLines.size * 12f)
                         
                         // --- TRATAMENTO DE FOTOS MÚLTIPLAS ---
@@ -266,6 +271,48 @@ object PdfGenerator {
             }
         }
     }
+
+    // Função auxiliar para quebrar texto respeitando palavras
+    private fun breakTextIntoLines(text: String, paint: Paint, maxWidth: Float): List<String> {
+        val lines = mutableListOf<String>()
+        val words = text.split(" ")
+        var currentLine = StringBuilder()
+
+        for (word in words) {
+            val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
+            val width = paint.measureText(testLine)
+
+            if (width <= maxWidth) {
+                currentLine.setLength(0)
+                currentLine.append(testLine)
+            } else {
+                if (currentLine.isNotEmpty()) {
+                    lines.add(currentLine.toString())
+                }
+                // Se a palavra sozinha for maior que a largura (caso raro), ela será cortada ou quebrada
+                // Mas aqui reiniciamos a linha com ela
+                currentLine.setLength(0)
+                currentLine.append(word)
+            }
+        }
+
+        if (currentLine.isNotEmpty()) {
+            lines.add(currentLine.toString())
+        }
+        
+        // Tratamento para quebras de linha manuais (\n) inseridas pelo usuário
+        val finalLines = mutableListOf<String>()
+        for (line in lines) {
+            // Se houver \n dentro do bloco processado, quebra novamente
+            if (line.contains("\n")) {
+                finalLines.addAll(line.split("\n"))
+            } else {
+                finalLines.add(line)
+            }
+        }
+
+        return finalLines
+    }
     
     // Função auxiliar para desenhar um item gráfico (Mini Card)
     private fun drawGraphItem(context: Context, canvas: android.graphics.Canvas, item: MaintenanceItem, x: Float, y: Float) {
@@ -303,8 +350,14 @@ object PdfGenerator {
         
         // Obs (se houver)
         if (item.description.isNotBlank() && item.description != "Registro de Gráfico de Produção") {
-             val shortDesc = if (item.description.length > 45) item.description.substring(0, 42) + "..." else item.description
-             canvas.drawText("Obs: $shortDesc", x, y + 170, paintTextSmall)
+             // Também aplica wrap no gráfico para não cortar
+             val wrappedDesc = breakTextIntoLines(item.description, paintTextSmall, 230f)
+             // Pega só as primeiras 2 linhas para não estourar layout
+             var textY = y + 170
+             wrappedDesc.take(2).forEach { line ->
+                 canvas.drawText(line, x, textY, paintTextSmall)
+                 textY += 10
+             }
         }
     }
     
