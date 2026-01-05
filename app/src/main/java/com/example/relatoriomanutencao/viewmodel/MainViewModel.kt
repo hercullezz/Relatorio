@@ -4,6 +4,7 @@ import android.app.Application
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
+import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.relatoriomanutencao.data.AppDatabase
@@ -28,6 +29,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.abs
 
 @OptIn(FlowPreview::class)
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -45,10 +47,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // --- Stock State ---
     private val _stockSearchQuery = MutableStateFlow("")
     val stockSearchQuery: StateFlow<String> = _stockSearchQuery.asStateFlow()
-
-    // Flag para alternar modo de busca (Código vs Descrição) - Definição necessária
-    private val _isSearchByCode = MutableStateFlow(false)
-    val isSearchByCode: StateFlow<Boolean> = _isSearchByCode.asStateFlow()
     
     private val _cloudStockItems = MutableStateFlow<List<StockItem>>(emptyList())
     val stockItems: StateFlow<List<StockItem>> = _cloudStockItems.asStateFlow()
@@ -164,7 +162,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val results = query.find()
                 
                 if (results.isNotEmpty()) {
-                    val parseObject = results.minByOrNull { Math.abs(it.createdAt.time - originalItem.date) }
+                    val parseObject = results.minByOrNull { abs(it.createdAt.time - originalItem.date) }
                     
                     if (parseObject != null) {
                         parseObject.put("description", newDescription)
@@ -215,7 +213,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             
             try {
-                val uri = Uri.parse(uriString)
+                val uri = uriString.toUri()
                 val url = CloudinaryHelper.uploadImage(getApplication(), uri)
                 urls.add(url)
             } catch (e: Exception) {
@@ -233,7 +231,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 query.whereEqualTo("description", item.description)
                 val result = query.find()
                 if (result.isNotEmpty()) {
-                    val target = result.minByOrNull { Math.abs(it.createdAt.time - item.date) }
+                    val target = result.minByOrNull { abs(it.createdAt.time - item.date) }
                     target?.delete()
                     refreshMaintenanceList()
                     withContext(Dispatchers.Main) { Toast.makeText(getApplication(), "Excluído.", Toast.LENGTH_SHORT).show() }
@@ -449,8 +447,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun onSearchQueryChanged(query: String) { _stockSearchQuery.value = query }
-    fun toggleSearchMode() { _isSearchByCode.value = !_isSearchByCode.value }
-    fun importStockData() {}
 
     fun importCsvDirectToCloud(uri: Uri) {
         _isLoading.value = true
@@ -488,8 +484,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun importExcelData(uri: Uri) { importCsvDirectToCloud(uri) }
-    fun syncStockToCloud() {}
-
+    
     // --- Machine Configuration Actions ---
     
     fun syncMachineConfiguration() {
@@ -574,10 +569,5 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _isLoading.value = false
             }
         } 
-    }
-    
-    fun getMachinesByLine(lineId: Long): StateFlow<List<Machine>> {
-         return machineConfigRepository.getMachinesByLineId(lineId)
-             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     }
 }

@@ -58,8 +58,11 @@ fun StockScreen(viewModel: MainViewModel) {
     val stockLocations by viewModel.stockLocations.collectAsState() // Locais para Entrada Manual
     val isLoading by viewModel.isLoading.collectAsState() // Observa o estado de carregamento
     
-    // Estados para Entrada Manual
-    var showManualEntryDialog by remember { mutableStateOf(false) }
+    // Estado para Entrada via Lista (Item Específico)
+    var itemToAddStock by remember { mutableStateOf<StockItem?>(null) }
+    
+    // Estado para Confirmação de Entrada (Dados a confirmar)
+    var stockEntryConfirmation by remember { mutableStateOf<Triple<StockItem, Int, String>?>(null) }
     
     // Estado para proteção de importação
     var showImportPasswordDialog by remember { mutableStateOf(false) }
@@ -90,12 +93,6 @@ fun StockScreen(viewModel: MainViewModel) {
                 ) {
                     Icon(Icons.Default.Upload, contentDescription = "Importar Planilha")
                 }
-
-                ExtendedFloatingActionButton(
-                    onClick = { showManualEntryDialog = true },
-                    icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                    text = { Text("Entrada Manual") }
-                )
             }
         }
     ) { paddingValues ->
@@ -119,7 +116,7 @@ fun StockScreen(viewModel: MainViewModel) {
                 if (stockItems.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
-                            if(searchQuery.length < 2) "Digite para buscar no catálogo.\nUse o botão (+) para dar entrada." 
+                            if(searchQuery.length < 2) "Digite para buscar no catálogo.\nUse o botão (+) ao lado do item para dar entrada." 
                             else "Nenhum item encontrado.", 
                             color = Color.Gray,
                             textAlign = TextAlign.Center
@@ -135,8 +132,7 @@ fun StockScreen(viewModel: MainViewModel) {
                                 item = item,
                                 onConsumeClick = { itemToConsume = item },
                                 onAddClick = { 
-                                    // Atalho: abre dialogo de entrada preenchido
-                                    // mas vamos manter simples por enquanto, entrada manual serve para tudo
+                                    itemToAddStock = item
                                 }
                             )
                         }
@@ -173,14 +169,32 @@ fun StockScreen(viewModel: MainViewModel) {
 
     // --- DIÁLOGOS ---
 
-    // 1. Entrada Manual
-    if (showManualEntryDialog) {
+    // 1. Entrada Específica (Vindo da Lista - Código Travado)
+    if (itemToAddStock != null) {
         ManualEntryDialog(
             locations = stockLocations,
-            onDismiss = { showManualEntryDialog = false },
+            initialCode = itemToAddStock!!.code,
+            isCodeReadOnly = true, // Trava o campo de código
+            onDismiss = { itemToAddStock = null },
             onConfirm = { code, qty, loc ->
-                viewModel.addStockEntry(code, qty, loc)
-                showManualEntryDialog = false
+                // Prepara para confirmação em vez de salvar direto
+                stockEntryConfirmation = Triple(itemToAddStock!!, qty, loc)
+                itemToAddStock = null
+            }
+        )
+    }
+    
+    // 1.1 Confirmação de Entrada Detalhada
+    if (stockEntryConfirmation != null) {
+        val (item, qty, loc) = stockEntryConfirmation!!
+        StockEntryConfirmationDialog(
+            item = item,
+            quantityToAdd = qty,
+            location = loc,
+            onDismiss = { stockEntryConfirmation = null },
+            onConfirm = {
+                viewModel.addStockEntry(item.code, qty, loc)
+                stockEntryConfirmation = null
             }
         )
     }
@@ -259,6 +273,70 @@ fun StockScreen(viewModel: MainViewModel) {
 }
 
 @Composable
+fun StockEntryConfirmationDialog(
+    item: StockItem,
+    quantityToAdd: Int,
+    location: String,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Confirmar Entrada") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Verifique os dados antes de confirmar:")
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                
+                DetailRow("Código", item.code)
+                DetailRow("Descrição", item.description)
+                // Se houver descrição detalhada no futuro, adicionar aqui
+                DetailRow("Local", location)
+                DetailRow("Saldo Atual", item.quantity.toString())
+                DetailRow("Qtd. a Adicionar", "+$quantityToAdd", Color(0xFF2E7D32)) // Verde
+                
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                
+                DetailRow(
+                    "Saldo Final", 
+                    "${item.quantity + quantityToAdd}", 
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text("Confirmar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Corrigir")
+            }
+        }
+    )
+}
+
+@Composable
+fun DetailRow(label: String, value: String, color: Color = Color.Unspecified, fontWeight: FontWeight? = null) {
+    Row(
+        modifier = Modifier.fillMaxWidth(), 
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+        Text(
+            text = value, 
+            style = MaterialTheme.typography.bodyMedium, 
+            color = color, 
+            fontWeight = fontWeight,
+            textAlign = TextAlign.End,
+            modifier = Modifier.fillMaxWidth(0.6f) // Limita largura para não quebrar layout
+        )
+    }
+}
+
+@Composable
 fun PasswordDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
@@ -314,30 +392,39 @@ fun PasswordDialog(
 @Composable
 fun ManualEntryDialog(
     locations: List<String>,
+    initialCode: String = "",
+    isCodeReadOnly: Boolean = false,
     onDismiss: () -> Unit,
     onConfirm: (String, Int, String) -> Unit
 ) {
-    var code by remember { mutableStateOf("") }
+    var code by remember { mutableStateOf(initialCode) }
     var quantityStr by remember { mutableStateOf("1") }
     var selectedLocation by remember { mutableStateOf("") }
     var isLocationExpanded by remember { mutableStateOf(false) }
+    var locationError by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Entrada de Estoque") },
+        title = { Text(if(isCodeReadOnly) "Adicionar ao Estoque" else "Entrada Manual") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = code,
-                    onValueChange = { code = it },
+                    onValueChange = { if(!isCodeReadOnly) code = it },
                     label = { Text("Código da Peça") },
-                    modifier = Modifier.fillMaxWidth()
+                    readOnly = isCodeReadOnly,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = if(isCodeReadOnly) OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
+                    ) else OutlinedTextFieldDefaults.colors()
                 )
                 
                 OutlinedTextField(
                     value = quantityStr,
                     onValueChange = { if (it.all { char -> char.isDigit() }) quantityStr = it },
                     label = { Text("Quantidade (Adicionar)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -349,23 +436,17 @@ fun ManualEntryDialog(
                         value = selectedLocation,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Local (Opcional)") },
+                        label = { Text("Local (Obrigatório)") },
                         placeholder = { Text("Selecione o local") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isLocationExpanded) },
                         colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                        isError = locationError,
                         modifier = Modifier.menuAnchor().fillMaxWidth()
                     )
                     ExposedDropdownMenu(
                         expanded = isLocationExpanded,
                         onDismissRequest = { isLocationExpanded = false }
                     ) {
-                        DropdownMenuItem(
-                            text = { Text("Sem alteração") },
-                            onClick = { 
-                                selectedLocation = ""
-                                isLocationExpanded = false 
-                            }
-                        )
                         if (locations.isEmpty()) {
                              DropdownMenuItem(
                                 text = { Text("Nenhum local cadastrado em Config.") },
@@ -379,11 +460,15 @@ fun ManualEntryDialog(
                                     onClick = {
                                         selectedLocation = loc
                                         isLocationExpanded = false
+                                        locationError = false
                                     }
                                 )
                             }
                         }
                     }
+                }
+                if (locationError) {
+                    Text("Selecione um local!", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
             }
         },
@@ -391,12 +476,16 @@ fun ManualEntryDialog(
             Button(
                 onClick = {
                     val qty = quantityStr.toIntOrNull() ?: 0
-                    if (code.isNotBlank() && qty > 0) {
+                    if (code.isNotBlank() && qty > 0 && selectedLocation.isNotBlank()) {
                         onConfirm(code, qty, selectedLocation)
+                    } else {
+                        if (selectedLocation.isBlank()) {
+                            locationError = true
+                        }
                     }
                 }
             ) {
-                Text("Dar Entrada")
+                Text("Continuar")
             }
         },
         dismissButton = {
@@ -411,7 +500,7 @@ fun ManualEntryDialog(
 fun StockItemCard(
     item: StockItem,
     onConsumeClick: () -> Unit,
-    onAddClick: () -> Unit // Opcional, pode ser usado para atalho
+    onAddClick: () -> Unit // Nova ação
 ) {
     val cardColor = if (item.quantity > 0) Color(0xFF2E7D32) else Color.Gray // Verde vs Cinza
     val contentColor = Color.White
@@ -486,13 +575,30 @@ fun StockItemCard(
                 
                 Spacer(modifier = Modifier.height(8.dp))
                 
-                // Botão de Baixa Rápida
-                FilledTonalIconButton(
-                    onClick = onConsumeClick,
-                    enabled = item.quantity > 0,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(Icons.Default.Remove, contentDescription = "Baixa", modifier = Modifier.size(16.dp))
+                // Botões de Ação: Entrada (+) e Baixa (-)
+                Row {
+                    // Botão Entrada (Verde)
+                    FilledTonalIconButton(
+                        onClick = onAddClick,
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = Color(0xFFE8F5E9), 
+                            contentColor = Color(0xFF2E7D32)
+                        ),
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Entrada", modifier = Modifier.size(16.dp))
+                    }
+                    
+                    Spacer(modifier = Modifier.width(8.dp))
+                    
+                    // Botão Baixa (Padrão)
+                    FilledTonalIconButton(
+                        onClick = onConsumeClick,
+                        enabled = item.quantity > 0,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(Icons.Default.Remove, contentDescription = "Baixa", modifier = Modifier.size(16.dp))
+                    }
                 }
             }
         }
