@@ -1,6 +1,7 @@
 package com.example.relatoriomanutencao.ui
 
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -72,12 +74,21 @@ fun NewMaintenanceScreen(viewModel: MainViewModel) {
     
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         if (success && cameraUri.value != null) {
-            selectedImageUris = selectedImageUris + cameraUri.value!!
+            if (selectedImageUris.size < 3) {
+                selectedImageUris = selectedImageUris + cameraUri.value!!
+            }
         }
     }
 
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
-        selectedImageUris = selectedImageUris + uris
+        // Limita a adição para não ultrapassar 3 no total
+        val remainingSlots = 3 - selectedImageUris.size
+        if (remainingSlots > 0) {
+            selectedImageUris = selectedImageUris + uris.take(remainingSlots)
+        }
+        if (uris.size > remainingSlots) {
+             Toast.makeText(context, "Apenas 3 fotos permitidas.", Toast.LENGTH_SHORT).show()
+        }
     }
 
     fun createImageUri(): Uri {
@@ -269,20 +280,44 @@ fun NewMaintenanceScreen(viewModel: MainViewModel) {
                 )
 
                 // --- Fotos ---
-                Text(text = "Fotos", style = MaterialTheme.typography.titleMedium)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "Fotos", style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Badge(containerColor = if (selectedImageUris.size == 3) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer) {
+                        Text("${selectedImageUris.size}/3", modifier = Modifier.padding(4.dp))
+                    }
+                }
+                
+                // Aviso sobre limite
+                if (selectedImageUris.size < 3) {
+                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Info, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Máximo de 3 fotos para o layout do relatório.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                     }
+                } else {
+                     Text("Limite de fotos atingido.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                }
+
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Button(onClick = {
-                        val uri = createImageUri()
-                        cameraUri.value = uri
-                        cameraLauncher.launch(uri)
-                    }) {
+                    Button(
+                        onClick = {
+                            val uri = createImageUri()
+                            cameraUri.value = uri
+                            cameraLauncher.launch(uri)
+                        },
+                        enabled = selectedImageUris.size < 3
+                    ) {
                         Icon(Icons.Default.AddPhotoAlternate, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Câmera")
                     }
-                    OutlinedButton(onClick = { galleryLauncher.launch("image/*") }) {
+                    OutlinedButton(
+                        onClick = { galleryLauncher.launch("image/*") },
+                        enabled = selectedImageUris.size < 3
+                    ) {
                         Text("Galeria")
                     }
                 }
