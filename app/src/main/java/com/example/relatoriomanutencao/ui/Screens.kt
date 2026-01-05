@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -29,6 +30,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -46,13 +50,22 @@ import java.util.Date
 import java.util.Locale
 
 // --- Stock Screen ---
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StockScreen(viewModel: MainViewModel) {
     val stockItems by viewModel.stockItems.collectAsState()
     val searchQuery by viewModel.stockSearchQuery.collectAsState()
+    val stockLocations by viewModel.stockLocations.collectAsState() // Locais para Entrada Manual
     val isLoading by viewModel.isLoading.collectAsState() // Observa o estado de carregamento
     
-    var showSyncDialog by remember { mutableStateOf(false) }
+    // Estados para Entrada Manual
+    var showManualEntryDialog by remember { mutableStateOf(false) }
+    
+    // Estado para proteção de importação
+    var showImportPasswordDialog by remember { mutableStateOf(false) }
+    
+    // Estados para Confirmação de Baixa
+    var itemToConsume by remember { mutableStateOf<StockItem?>(null) }
 
     // Launcher para selecionar arquivo Excel ou CSV
     val excelPickerLauncher = rememberLauncherForActivityResult(
@@ -64,104 +77,348 @@ fun StockScreen(viewModel: MainViewModel) {
         }
     )
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Button(
+    Scaffold(
+        floatingActionButton = {
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                SmallFloatingActionButton(
                     onClick = { 
-                        // Abre o seletor permitindo CSV e Excel
-                        excelPickerLauncher.launch(arrayOf(
-                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
-                            "application/vnd.ms-excel", // .xls
-                            "text/comma-separated-values", // .csv padrão
-                            "text/csv", // .csv alternativo
-                            "text/plain", // .txt ou csv genérico
-                            "*/*" // Fallback para garantir que apareça em todos os dispositivos
-                        ))
+                        // Pede senha antes de abrir o seletor
+                        showImportPasswordDialog = true
                     },
-                    modifier = Modifier.weight(1f),
-                    enabled = !isLoading // Desabilita botão durante o carregamento
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                 ) {
-                    Icon(Icons.Default.FileDownload, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Importar CSV/Excel")
+                    Icon(Icons.Default.Upload, contentDescription = "Importar Planilha")
                 }
-                
-                Spacer(modifier = Modifier.width(8.dp))
+
+                ExtendedFloatingActionButton(
+                    onClick = { showManualEntryDialog = true },
+                    icon = { Icon(Icons.Default.Add, contentDescription = null) },
+                    text = { Text("Entrada Manual") }
+                )
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { viewModel.onSearchQueryChanged(it) },
-                label = { Text("Pesquisar (Código ou Descrição)") },
-                modifier = Modifier.fillMaxWidth(),
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                placeholder = { Text("Digite para buscar...") }
-            )
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            if (stockItems.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        if(searchQuery.length < 2) "Digite algo para buscar no catálogo online." 
-                        else "Nenhum item encontrado.", 
-                        color = Color.Gray
-                    )
-                }
-            } else {
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(stockItems) { item ->
-                        StockItemCard(item)
+        }
+    ) { paddingValues ->
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { viewModel.onSearchQueryChanged(it) },
+                    label = { Text("Pesquisar (Código ou Descrição)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    placeholder = { Text("Digite para buscar...") }
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                if (stockItems.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            if(searchQuery.length < 2) "Digite para buscar no catálogo.\nUse o botão (+) para dar entrada." 
+                            else "Nenhum item encontrado.", 
+                            color = Color.Gray,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(bottom = 100.dp)
+                    ) {
+                        items(stockItems) { item ->
+                            StockItemCard(
+                                item = item,
+                                onConsumeClick = { itemToConsume = item },
+                                onAddClick = { 
+                                    // Atalho: abre dialogo de entrada preenchido
+                                    // mas vamos manter simples por enquanto, entrada manual serve para tudo
+                                }
+                            )
+                        }
                     }
                 }
             }
-        }
 
-        // Indicador de Carregamento (Loading)
-        if (isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp), 
-                contentAlignment = Alignment.Center
-            ) {
-                // Fundo semi-transparente
-                Surface(
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
-                    modifier = Modifier.fillMaxSize()
-                ) {}
-                
-                Card(elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)) {
-                    Column(
-                        modifier = Modifier.padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        CircularProgressIndicator()
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text("Buscando na nuvem...", fontWeight = FontWeight.Bold)
+            // Indicador de Carregamento (Loading)
+            if (isLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize(), 
+                    contentAlignment = Alignment.Center
+                ) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
+                        modifier = Modifier.fillMaxSize()
+                    ) {}
+                    
+                    Card(elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)) {
+                        Column(
+                            modifier = Modifier.padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            CircularProgressIndicator()
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text("Processando...", fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
         }
     }
+
+    // --- DIÁLOGOS ---
+
+    // 1. Entrada Manual
+    if (showManualEntryDialog) {
+        ManualEntryDialog(
+            locations = stockLocations,
+            onDismiss = { showManualEntryDialog = false },
+            onConfirm = { code, qty, loc ->
+                viewModel.addStockEntry(code, qty, loc)
+                showManualEntryDialog = false
+            }
+        )
+    }
+    
+    // 2. Senha para Importação
+    if (showImportPasswordDialog) {
+        PasswordDialog(
+            onDismiss = { showImportPasswordDialog = false },
+            onConfirm = {
+                showImportPasswordDialog = false
+                // Abre o seletor permitindo CSV e Excel após senha correta
+                excelPickerLauncher.launch(arrayOf(
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+                    "application/vnd.ms-excel", // .xls
+                    "text/comma-separated-values", // .csv padrão
+                    "text/csv", // .csv alternativo
+                    "text/plain", // .txt ou csv genérico
+                    "*/*" // Fallback
+                ))
+            }
+        )
+    }
+
+    // 3. Confirmação de Baixa
+    if (itemToConsume != null) {
+        var quantityToConsume by remember { mutableIntStateOf(1) }
+        
+        AlertDialog(
+            onDismissRequest = { itemToConsume = null },
+            icon = { Icon(Icons.Default.Output, contentDescription = null) },
+            title = { Text("Baixa de Estoque") },
+            text = {
+                Column {
+                    Text("Item: ${itemToConsume!!.description}")
+                    Text("Saldo Atual: ${itemToConsume!!.quantity}", fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { if (quantityToConsume > 1) quantityToConsume-- }) {
+                            Icon(Icons.Default.Remove, null)
+                        }
+                        Text(
+                            text = quantityToConsume.toString(),
+                            style = MaterialTheme.typography.titleLarge,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                        IconButton(onClick = { 
+                            if (quantityToConsume < itemToConsume!!.quantity) quantityToConsume++ 
+                        }) {
+                            Icon(Icons.Default.Add, null)
+                        }
+                    }
+                    if (itemToConsume!!.quantity == 0) {
+                        Text("Sem saldo para baixar!", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.consumeStock(itemToConsume!!.code, quantityToConsume)
+                        itemToConsume = null
+                    },
+                    enabled = itemToConsume!!.quantity > 0
+                ) {
+                    Text("Confirmar Baixa")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { itemToConsume = null }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
 }
 
 @Composable
-fun StockItemCard(item: StockItem) {
-    val cardColor = if (item.quantity > 0) Color(0xFF2E7D32) else Color.White // Dark Green vs White
-    val contentColor = if (item.quantity > 0) Color.White else Color.Black
+fun PasswordDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    var password by remember { mutableStateOf("") }
+    var isError by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Acesso Restrito") },
+        text = {
+            Column {
+                Text("Digite a senha administrativa para importar dados:")
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { 
+                        password = it
+                        isError = false
+                    },
+                    label = { Text("Senha") },
+                    singleLine = true,
+                    isError = isError,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (isError) {
+                    Text("Senha incorreta.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                if (password == "9615") {
+                    onConfirm()
+                } else {
+                    isError = true
+                }
+            }) {
+                Text("Confirmar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ManualEntryDialog(
+    locations: List<String>,
+    onDismiss: () -> Unit,
+    onConfirm: (String, Int, String) -> Unit
+) {
+    var code by remember { mutableStateOf("") }
+    var quantityStr by remember { mutableStateOf("1") }
+    var selectedLocation by remember { mutableStateOf("") }
+    var isLocationExpanded by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Entrada de Estoque") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = code,
+                    onValueChange = { code = it },
+                    label = { Text("Código da Peça") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                
+                OutlinedTextField(
+                    value = quantityStr,
+                    onValueChange = { if (it.all { char -> char.isDigit() }) quantityStr = it },
+                    label = { Text("Quantidade (Adicionar)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                ExposedDropdownMenuBox(
+                    expanded = isLocationExpanded,
+                    onExpandedChange = { isLocationExpanded = !isLocationExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = selectedLocation,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Local (Opcional)") },
+                        placeholder = { Text("Selecione o local") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isLocationExpanded) },
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = isLocationExpanded,
+                        onDismissRequest = { isLocationExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Sem alteração") },
+                            onClick = { 
+                                selectedLocation = ""
+                                isLocationExpanded = false 
+                            }
+                        )
+                        if (locations.isEmpty()) {
+                             DropdownMenuItem(
+                                text = { Text("Nenhum local cadastrado em Config.") },
+                                onClick = { isLocationExpanded = false },
+                                enabled = false
+                            )
+                        } else {
+                            locations.forEach { loc ->
+                                DropdownMenuItem(
+                                    text = { Text(loc) },
+                                    onClick = {
+                                        selectedLocation = loc
+                                        isLocationExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val qty = quantityStr.toIntOrNull() ?: 0
+                    if (code.isNotBlank() && qty > 0) {
+                        onConfirm(code, qty, selectedLocation)
+                    }
+                }
+            ) {
+                Text("Dar Entrada")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+
+@Composable
+fun StockItemCard(
+    item: StockItem,
+    onConsumeClick: () -> Unit,
+    onAddClick: () -> Unit // Opcional, pode ser usado para atalho
+) {
+    val cardColor = if (item.quantity > 0) Color(0xFF2E7D32) else Color.Gray // Verde vs Cinza
+    val contentColor = Color.White
+    
+    // Ferramentas para Copiar
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+    val context = LocalContext.current
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -169,26 +426,73 @@ fun StockItemCard(item: StockItem) {
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
-        Row(modifier = Modifier.padding(16.dp)) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Código: ${item.code}", fontWeight = FontWeight.Bold)
-                Text("Descrição: ${item.description}")
-                Text("Endereço: ${item.address}")
+                Text(
+                    text = item.description, 
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                // Código com Botão Copiar
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Cód: ${item.code}", style = MaterialTheme.typography.bodySmall)
+                    IconButton(
+                        onClick = {
+                            clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(item.code))
+                            Toast.makeText(context, "Código copiado: ${item.code}", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier
+                            .size(32.dp)
+                            .padding(start = 4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ContentCopy,
+                            contentDescription = "Copiar Código",
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+                
+                if (item.address.isNotBlank()) {
+                    Text("Local: ${item.address}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                }
             }
-            Card(
-                colors = CardDefaults.cardColors(containerColor = cardColor)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .sizeIn(minWidth = 40.dp),
-                    contentAlignment = Alignment.Center
+            
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = cardColor),
+                    shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text(
-                        text = item.quantity.toString(),
-                        color = contentColor,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Box(
+                        modifier = Modifier
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                            .sizeIn(minWidth = 40.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = item.quantity.toString(),
+                            color = contentColor,
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                // Botão de Baixa Rápida
+                FilledTonalIconButton(
+                    onClick = onConsumeClick,
+                    enabled = item.quantity > 0,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(Icons.Default.Remove, contentDescription = "Baixa", modifier = Modifier.size(16.dp))
                 }
             }
         }

@@ -12,8 +12,9 @@ android {
         applicationId = "com.example.relatoriomanutencao"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        // Atualizando versão para permitir update "por cima" sem perder dados
+        versionCode = 3 
+        versionName = "1.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

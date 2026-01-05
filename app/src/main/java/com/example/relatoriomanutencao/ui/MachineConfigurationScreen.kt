@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.ImageNotSupported
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Delete
@@ -39,11 +40,13 @@ fun MachineConfigurationScreen(
     val productionLines by viewModel.allProductionLines.collectAsState()
     val allMachines by viewModel.allMachines.collectAsState()
     val machinesWithoutLine by viewModel.machinesWithoutLine.collectAsState()
+    val stockLocations by viewModel.stockLocations.collectAsState() // Novos locais
     val isLoading by viewModel.isLoading.collectAsState()
 
     // Estados para adicionar/editar
     var showAddLineDialog by remember { mutableStateOf(false) }
     var showAddMachineDialog by remember { mutableStateOf(false) }
+    var showAddLocationDialog by remember { mutableStateOf(false) } // Novo diálogo
     var selectedLineForMachine by remember { mutableStateOf<ProductionLine?>(null) }
     
     // Estado para Limpeza de Nuvem
@@ -82,13 +85,23 @@ fun MachineConfigurationScreen(
              )
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { showAddLineDialog = true },
-                icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text("Nova Linha") },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            )
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                SmallFloatingActionButton(
+                    onClick = { showAddLocationDialog = true },
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                ) {
+                    Icon(Icons.Filled.LocationOn, contentDescription = "Novo Local")
+                }
+
+                ExtendedFloatingActionButton(
+                    onClick = { showAddLineDialog = true },
+                    icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                    text = { Text("Nova Linha") },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            }
         }
     ) { paddingValues ->
         LazyColumn(
@@ -96,10 +109,10 @@ fun MachineConfigurationScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(bottom = 80.dp),
+            contentPadding = PaddingValues(bottom = 100.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // --- Seção de Nuvem (Movida da antiga CloudScreen) ---
+            // --- Seção de Nuvem ---
             item {
                 Card(
                     colors = CardDefaults.cardColors(
@@ -141,19 +154,56 @@ fun MachineConfigurationScreen(
                 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
             }
-            
+
+            // --- Seção Locais de Estoque ---
             item {
+                SectionHeader("Locais de Estoque")
+                Text(
+                    text = "Defina os armazéns, prateleiras ou caixas para organizar seu estoque.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            if (stockLocations.isNotEmpty()) {
+                items(stockLocations) { location ->
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        shape = RoundedCornerShape(8.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Filled.LocationOn, null, tint = MaterialTheme.colorScheme.secondary)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(location, style = MaterialTheme.typography.bodyLarge)
+                            }
+                            IconButton(onClick = { viewModel.deleteStockLocation(location) }) {
+                                Icon(Icons.Outlined.Delete, null, tint = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    }
+                }
+            } else {
+                item {
+                    EmptyStateMessage("Nenhum local cadastrado. Use o botão (+) menor.")
+                }
+            }
+
+            item {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+                
                 Column(modifier = Modifier.padding(bottom = 8.dp)) {
                     Text(
                         text = "Gerenciamento de Máquinas",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "Organize suas linhas de produção e equipamentos.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -231,6 +281,17 @@ fun MachineConfigurationScreen(
             onConfirm = { name ->
                 viewModel.addProductionLine(name)
                 showAddLineDialog = false
+            }
+        )
+    }
+
+    if (showAddLocationDialog) {
+        AddNameDialog(
+            title = "Novo Local de Estoque",
+            onDismiss = { showAddLocationDialog = false },
+            onConfirm = { name ->
+                viewModel.addStockLocation(name)
+                showAddLocationDialog = false
             }
         )
     }

@@ -45,12 +45,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // --- Stock State ---
     private val _stockSearchQuery = MutableStateFlow("")
     val stockSearchQuery: StateFlow<String> = _stockSearchQuery.asStateFlow()
+
+    // Flag para alternar modo de busca (Código vs Descrição) - Definição necessária
+    private val _isSearchByCode = MutableStateFlow(false)
+    val isSearchByCode: StateFlow<Boolean> = _isSearchByCode.asStateFlow()
     
     private val _cloudStockItems = MutableStateFlow<List<StockItem>>(emptyList())
     val stockItems: StateFlow<List<StockItem>> = _cloudStockItems.asStateFlow()
     
-    private val _isSearchByCode = MutableStateFlow(true)
-    val isSearchByCode: StateFlow<Boolean> = _isSearchByCode.asStateFlow()
+    // Lista de Locais de Estoque (Armazém 05, Caixa 1, etc)
+    private val _stockLocations = MutableStateFlow<List<String>>(emptyList())
+    val stockLocations: StateFlow<List<String>> = _stockLocations.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -68,6 +73,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     init {
         refreshMaintenanceList()
         syncMachineConfiguration()
+        fetchStockLocations() // Busca os locais ao iniciar
         
         viewModelScope.launch {
             _stockSearchQuery
@@ -127,7 +133,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 serviceObject.put("type", serviceType)
                 serviceObject.put("description", description)
                 
-                // Salva apenas os links no novo campo
                 if (uploadedUrls.isNotEmpty()) {
                     serviceObject.put("external_photos", uploadedUrls)
                 }
@@ -164,20 +169,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     if (parseObject != null) {
                         parseObject.put("description", newDescription)
                         
-                        // Separa o que é link existente do que é foto nova
                         val allUris = newPhotoUris.split(",").filter { it.isNotBlank() }
-                        
-                        // Links que já existem (seja Back4App antigo ou Cloudinary já salvo)
                         val existingLinks = allUris.filter { it.startsWith("http") }
-                        
-                        // Novas fotos locais para subir
                         val newLocalUris = allUris.filter { !it.startsWith("http") }
                         
-                        // Faz upload das novas
                         val newUploadedUrls = uploadPhotosToCloudinary(newLocalUris.joinToString(","))
-                        
-                        // Lista Final para o campo 'external_photos':
-                        // Mantemos os links do Cloudinary que já existiam + os novos uploads.
                         val finalExternalList = existingLinks.filter { !it.contains("back4app") } + newUploadedUrls
                         
                         parseObject.put("external_photos", finalExternalList)
@@ -250,9 +246,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     
-    // --- NOVO: Limpeza Inteligente de Imagens ---
-    // Remove APENAS as imagens (links) dos relatórios antigos, mantendo o texto.
-    // Nota: A exclusão física no Cloudinary é feita via tag ou manual, pois não usamos a secret key aqui.
     fun cleanOldImagesOnly() {
         viewModelScope.launch(Dispatchers.IO) {
             withContext(Dispatchers.Main) { Toast.makeText(getApplication(), "Limpando fotos antigas...", Toast.LENGTH_SHORT).show() }
@@ -261,12 +254,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 calendar.add(java.util.Calendar.DAY_OF_YEAR, -30) // Ex: 30 dias atrás
                 val cutOffDate = calendar.time
                 
-                // Busca serviços antigos que tenham fotos
                 val query = ParseQuery.getQuery<ParseObject>("Servico")
                 query.whereLessThan("createdAt", cutOffDate)
-                
-                // Precisamos buscar todos para verificar se têm o campo external_photos preenchido
-                // (O Back4App tem limites, então pegamos os 1000 mais antigos)
                 query.limit = 1000
                 val oldServices = query.find()
                 
@@ -276,9 +265,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val legacyPhotos = service.get("photos")
                     
                     if ((photos != null && photos.isNotEmpty()) || legacyPhotos != null) {
-                        // Limpa os campos de foto
                         service.remove("external_photos")
-                        service.remove("photos") // Remove também as legacy se houver
+                        service.remove("photos") 
                         service.save()
                         count++
                     }
@@ -294,14 +282,134 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Mantido para compatibilidade se o botão antigo ainda existir, mas agora redireciona para a lógica nova se desejar,
-    // ou mantém a lógica de apagar TUDO (o que o usuário NÃO quer mais).
-    // Vou renomear/desativar a lógica destrutiva antiga para segurança.
-    fun cleanOldCloudData() {
-         cleanOldImagesOnly()
+    // --- GESTÃO DE ESTOQUE (MOVIMENTAÇÃO) ---
+
+    // 1. Entrada de Estoque (Manual)
+    fun addStockEntry(code: String, quantity: Int, location: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isLoading.value = true
+            try {
+                val query = ParseQuery.getQuery<ParseObject>("Peca")
+                query.whereEqualTo("codigo", code)
+                val result = query.find()
+
+                if (result.isNotEmpty()) {
+                    val item = result[0]
+                    val currentQty = item.getNumber("saldo")?.toInt() ?: 0
+                    
+                    item.put("saldo", currentQty + quantity)
+                    if (location.isNotBlank()) {
+                        item.put("endereco", location)
+                    }
+                    item.save()
+
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(getApplication(), "Entrada realizada! Novo saldo: ${currentQty + quantity}", Toast.LENGTH_SHORT).show()
+                        // Recarrega a busca se estiver na tela
+                        if (_stockSearchQuery.value.isNotBlank()) searchStockInBack4App(_stockSearchQuery.value)
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(getApplication(), "Erro: Código '$code' não encontrado no catálogo.", Toast.LENGTH_LONG).show()
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) { Toast.makeText(getApplication(), "Erro: ${e.message}", Toast.LENGTH_SHORT).show() }
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    // 2. Consumo de Estoque (Baixa)
+    fun consumeStock(itemCode: String, quantityToConsume: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isLoading.value = true
+            try {
+                val query = ParseQuery.getQuery<ParseObject>("Peca")
+                query.whereEqualTo("codigo", itemCode)
+                val result = query.find()
+
+                if (result.isNotEmpty()) {
+                    val item = result[0]
+                    val currentQty = item.getNumber("saldo")?.toInt() ?: 0
+
+                    if (currentQty >= quantityToConsume) {
+                        item.put("saldo", currentQty - quantityToConsume)
+                        item.save()
+                        
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(getApplication(), "Baixa realizada! Restam: ${currentQty - quantityToConsume}", Toast.LENGTH_SHORT).show()
+                            if (_stockSearchQuery.value.isNotBlank()) searchStockInBack4App(_stockSearchQuery.value)
+                        }
+                    } else {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(getApplication(), "ERRO: Saldo insuficiente! Disponível: $currentQty", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                } else {
+                     withContext(Dispatchers.Main) { Toast.makeText(getApplication(), "Item não encontrado.", Toast.LENGTH_SHORT).show() }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) { Toast.makeText(getApplication(), "Erro: ${e.message}", Toast.LENGTH_SHORT).show() }
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    // 3. Gerenciamento de Locais
+    private fun fetchStockLocations() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val query = ParseQuery.getQuery<ParseObject>("StockLocation")
+                query.orderByAscending("name")
+                val results = query.find()
+                val names = results.map { it.getString("name") ?: "" }.filter { it.isNotBlank() }
+                _stockLocations.value = names
+            } catch (e: Exception) {
+                Log.e("Stock", "Erro ao buscar locais: ${e.message}")
+            }
+        }
+    }
+
+    fun addStockLocation(name: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // Evita duplicados
+                val query = ParseQuery.getQuery<ParseObject>("StockLocation")
+                query.whereEqualTo("name", name)
+                if (query.count() == 0) {
+                    val loc = ParseObject("StockLocation")
+                    loc.put("name", name)
+                    loc.save()
+                    fetchStockLocations()
+                    withContext(Dispatchers.Main) { Toast.makeText(getApplication(), "Local salvo!", Toast.LENGTH_SHORT).show() }
+                } else {
+                    withContext(Dispatchers.Main) { Toast.makeText(getApplication(), "Local já existe.", Toast.LENGTH_SHORT).show() }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) { Toast.makeText(getApplication(), "Erro: ${e.message}", Toast.LENGTH_SHORT).show() }
+            }
+        }
+    }
+
+    fun deleteStockLocation(name: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val query = ParseQuery.getQuery<ParseObject>("StockLocation")
+                query.whereEqualTo("name", name)
+                val results = query.find()
+                results.forEach { it.delete() }
+                fetchStockLocations()
+                withContext(Dispatchers.Main) { Toast.makeText(getApplication(), "Local removido.", Toast.LENGTH_SHORT).show() }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) { Toast.makeText(getApplication(), "Erro: ${e.message}", Toast.LENGTH_SHORT).show() }
+            }
+        }
     }
     
-    // --- ESTOQUE (BACK4APP) ---
+    // --- ESTOQUE (Busca) ---
     private suspend fun searchStockInBack4App(query: String) {
         if (query.length < 2) {
              _cloudStockItems.value = emptyList()
@@ -389,6 +497,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _isLoading.value = true
             try {
                 machineConfigRepository.syncFromCloud()
+                fetchStockLocations() // Sync locations too
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Erro ao sincronizar configs: ${e.message}")
                 withContext(Dispatchers.Main) { 
