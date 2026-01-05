@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -285,140 +286,86 @@ fun SavedReportsScreen() {
     }
 }
 
-// --- Cloud Screen (Revised) ---
-@Composable
-fun CloudScreen(viewModel: MainViewModel = viewModel()) {
-    var showConfirmationDialog by remember { mutableStateOf(false) }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            Icons.Default.CloudSync, 
-            contentDescription = null, 
-            modifier = Modifier.size(100.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        Text(
-            "Sincronização Automática Ativa",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            "Todos os relatórios gerados são salvos automaticamente na nuvem para segurança.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.Gray,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
-        
-        Spacer(modifier = Modifier.height(48.dp))
-        
-        Card(
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer
-            ),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    "Gerenciar Armazenamento",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onErrorContainer
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    "Para economizar espaço, você pode apagar registros com mais de 30 dias.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onErrorContainer
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(
-                    onClick = { showConfirmationDialog = true },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    ),
-                    modifier = Modifier.align(Alignment.End)
-                ) {
-                    Icon(Icons.Default.DeleteSweep, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Limpar Antigos (>30 dias)")
-                }
-            }
-        }
-    }
-
-    if (showConfirmationDialog) {
-        AlertDialog(
-            onDismissRequest = { showConfirmationDialog = false },
-            icon = { Icon(Icons.Default.Warning, contentDescription = null) },
-            title = { Text("Confirmar Limpeza") },
-            text = { Text("Tem certeza que deseja apagar permanentemente todos os registros da nuvem anteriores a 30 dias atrás? Esta ação não pode ser desfeita.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.cleanOldCloudData()
-                        showConfirmationDialog = false
-                    }
-                ) {
-                    Text("Sim, Apagar")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showConfirmationDialog = false }) {
-                    Text("Cancelar")
-                }
-            }
-        )
-    }
-}
-
 // --- Services List Screen ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ServicesListScreen(viewModel: MainViewModel) {
      val allItems by viewModel.maintenanceItems.collectAsState()
      val context = LocalContext.current
-     var showOnlyCurrentShift by remember { mutableStateOf(true) } // Renomeado de "Today" para "CurrentShift"
      
-     // Estado para controle de edição
+     // Estado de Filtro
+     var showOnlyCurrentShift by remember { mutableStateOf(true) }
+     var selectedDateMillis by remember { mutableStateOf(System.currentTimeMillis()) }
+     var showDatePicker by remember { mutableStateOf(false) }
+     
+     // Estado para controle de edição e exclusão
      var editingItem by remember { mutableStateOf<MaintenanceItem?>(null) }
+     var itemToDelete by remember { mutableStateOf<MaintenanceItem?>(null) } // Novo estado para exclusão
      
      // Estado de carregamento do PDF
      var isGeneratingPdf by remember { mutableStateOf(false) }
      val coroutineScope = rememberCoroutineScope()
 
-     // Filter Logic - Turno Adaptável
-     val displayedItems = if (showOnlyCurrentShift) {
-         val now = Calendar.getInstance()
-         val currentHour = now.get(Calendar.HOUR_OF_DAY)
-         val currentMinute = now.get(Calendar.MINUTE)
-         
-         // Lógica para o 3º Turno:
-         val startFilterTime = Calendar.getInstance()
-         if (currentHour < 12) {
-             startFilterTime.add(Calendar.DAY_OF_YEAR, -1)
-             startFilterTime.set(Calendar.HOUR_OF_DAY, 18)
-             startFilterTime.set(Calendar.MINUTE, 0)
+     // Filter Logic - Turno Adaptável ou Data Específica
+     val displayedItems = remember(allItems, showOnlyCurrentShift, selectedDateMillis) {
+         if (showOnlyCurrentShift) {
+             val now = Calendar.getInstance()
+             val currentHour = now.get(Calendar.HOUR_OF_DAY)
+             
+             // Lógica para o 3º Turno:
+             // Se for de manhã (antes das 12h), pertence ao turno que começou ontem às 18h
+             // Se for a tarde/noite, pertence ao turno que começou hoje às 18h
+             val startFilterTime = Calendar.getInstance()
+             if (currentHour < 12) {
+                 startFilterTime.add(Calendar.DAY_OF_YEAR, -1)
+                 startFilterTime.set(Calendar.HOUR_OF_DAY, 18)
+                 startFilterTime.set(Calendar.MINUTE, 0)
+             } else {
+                 startFilterTime.set(Calendar.HOUR_OF_DAY, 18)
+                 startFilterTime.set(Calendar.MINUTE, 0)
+             }
+             
+             val filterTimestamp = startFilterTime.timeInMillis
+             allItems.filter { it.date >= filterTimestamp }
          } else {
-             startFilterTime.set(Calendar.HOUR_OF_DAY, 18)
-             startFilterTime.set(Calendar.MINUTE, 0)
+             // Lógica para Data Específica (Dia Calendário: 00:00 às 23:59)
+             val targetCal = Calendar.getInstance().apply { timeInMillis = selectedDateMillis }
+             val targetDay = targetCal.get(Calendar.DAY_OF_YEAR)
+             val targetYear = targetCal.get(Calendar.YEAR)
+             
+             allItems.filter { 
+                 val itemCal = Calendar.getInstance().apply { timeInMillis = it.date }
+                 itemCal.get(Calendar.DAY_OF_YEAR) == targetDay && 
+                 itemCal.get(Calendar.YEAR) == targetYear
+             }
          }
-         
-         val filterTimestamp = startFilterTime.timeInMillis
-         
-         allItems.filter { it.date >= filterTimestamp }
-     } else {
-         allItems
      }
      
+     // Date Picker Logic
+     if (showDatePicker) {
+         val datePickerState = rememberDatePickerState(
+             initialSelectedDateMillis = selectedDateMillis
+         )
+         DatePickerDialog(
+             onDismissRequest = { showDatePicker = false },
+             confirmButton = {
+                 TextButton(onClick = {
+                     datePickerState.selectedDateMillis?.let { selectedDateMillis = it }
+                     showDatePicker = false
+                 }) {
+                     Text("OK")
+                 }
+             },
+             dismissButton = {
+                 TextButton(onClick = { showDatePicker = false }) {
+                     Text("Cancelar")
+                 }
+             }
+         ) {
+             DatePicker(state = datePickerState)
+         }
+     }
+
      Scaffold(
          floatingActionButton = {
              ExtendedFloatingActionButton(
@@ -445,7 +392,7 @@ fun ServicesListScreen(viewModel: MainViewModel) {
                      }
                  },
                  text = { 
-                     Text(if (isGeneratingPdf) "Gerando PDF..." else "Gerar Relatório Consolidado") 
+                     Text(if (isGeneratingPdf) "Gerando PDF..." else "Gerar PDF (${displayedItems.size})") 
                  }
              )
          }
@@ -453,48 +400,81 @@ fun ServicesListScreen(viewModel: MainViewModel) {
          Box(modifier = Modifier.fillMaxSize()) {
              Column(modifier = Modifier.fillMaxSize().padding(paddingValues).padding(16.dp)) {
                  
-                 // Header com Filtro
+                 // --- HEADER E FILTROS ---
                  Row(
                      modifier = Modifier.fillMaxWidth(),
                      verticalAlignment = Alignment.CenterVertically,
                      horizontalArrangement = Arrangement.SpaceBetween
                  ) {
                      Text(
-                         text = if (showOnlyCurrentShift) "Turno Atual" else "Histórico Completo",
+                         text = "Histórico",
                          style = MaterialTheme.typography.headlineSmall,
                          fontWeight = FontWeight.Bold
                      )
+                     
+                     // Toggle: Turno Atual vs Data
                      FilterChip(
                          selected = showOnlyCurrentShift,
                          onClick = { showOnlyCurrentShift = !showOnlyCurrentShift },
                          label = { Text("Turno Atual") },
                          leadingIcon = {
-                             if (showOnlyCurrentShift) {
-                                 Icon(Icons.Default.Check, contentDescription = null)
-                             }
+                             if (showOnlyCurrentShift) Icon(Icons.Default.Check, null)
                          }
                      )
                  }
-                 Text(
-                     text = if (showOnlyCurrentShift) "Exibindo itens das últimas horas (início ~18:00)" else "Exibindo todos os itens salvos",
-                     style = MaterialTheme.typography.bodySmall,
-                     color = Color.Gray
-                 )
 
+                 Spacer(modifier = Modifier.height(8.dp))
+
+                 // Se NÃO for Turno Atual, mostra seletor de Data
+                 if (!showOnlyCurrentShift) {
+                     val dateFormat = SimpleDateFormat("dd 'de' MMMM, yyyy", Locale.getDefault())
+                     val dateString = dateFormat.format(Date(selectedDateMillis))
+                     
+                     OutlinedButton(
+                         onClick = { showDatePicker = true },
+                         modifier = Modifier.fillMaxWidth(),
+                         shape = RoundedCornerShape(8.dp)
+                     ) {
+                         Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(18.dp))
+                         Spacer(modifier = Modifier.width(8.dp))
+                         Text(text = dateString)
+                         Spacer(modifier = Modifier.weight(1f))
+                         Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                     }
+                 } else {
+                     // Texto explicativo do Turno Atual
+                     Text(
+                         text = "Exibindo serviços registrados nas últimas horas (Turno Atual).",
+                         style = MaterialTheme.typography.bodySmall,
+                         color = Color.Gray
+                     )
+                 }
+                 
+                 Spacer(modifier = Modifier.height(16.dp))
+
+                 // --- LISTA DE ITENS ---
                  if (displayedItems.isEmpty()) {
                      Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                         Text("Nenhum serviço encontrado no período.", color = Color.Gray)
+                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                             Icon(Icons.Default.EventBusy, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(48.dp))
+                             Spacer(modifier = Modifier.height(8.dp))
+                             Text(
+                                 if(showOnlyCurrentShift) "Nenhum serviço neste turno." 
+                                 else "Nenhum serviço nesta data.", 
+                                 color = Color.Gray
+                             )
+                         }
                      }
                  } else {
                      LazyColumn(
-                         modifier = Modifier.fillMaxSize().padding(top = 8.dp),
+                         modifier = Modifier.fillMaxSize(),
                          verticalArrangement = Arrangement.spacedBy(8.dp),
-                         contentPadding = PaddingValues(bottom = 80.dp) // Space for FAB
+                         contentPadding = PaddingValues(bottom = 80.dp) // Espaço para o FAB
                      ) {
                          items(displayedItems) { item ->
                              MaintenanceItemCard(
                                  item = item, 
-                                 onDelete = { viewModel.deleteMaintenanceItem(item) },
+                                 onDelete = { itemToDelete = item }, // Aciona o diálogo
                                  onEdit = { editingItem = item }
                              )
                          }
@@ -502,11 +482,11 @@ fun ServicesListScreen(viewModel: MainViewModel) {
                  }
              }
              
-             // Loading Overlay (Opcional, se quiser bloquear a tela inteira)
+             // Loading Overlay (Opcional)
              if (isGeneratingPdf) {
                  Surface(
                      modifier = Modifier.fillMaxSize(),
-                     color = Color.Black.copy(alpha = 0.3f)
+                     color = Color.Black.copy(alpha = 0.5f)
                  ) {
                      Box(contentAlignment = Alignment.Center) {
                         Card {
@@ -516,7 +496,8 @@ fun ServicesListScreen(viewModel: MainViewModel) {
                             ) {
                                 CircularProgressIndicator()
                                 Spacer(Modifier.height(16.dp))
-                                Text("Baixando imagens e gerando PDF...", fontWeight = FontWeight.Bold)
+                                Text("Processando imagens...", fontWeight = FontWeight.Bold)
+                                Text("Gerando PDF Otimizado", style = MaterialTheme.typography.bodySmall)
                             }
                         }
                      }
@@ -533,6 +514,31 @@ fun ServicesListScreen(viewModel: MainViewModel) {
              onConfirm = { newDescription, newPhotos ->
                  viewModel.updateMaintenanceItem(editingItem!!, newDescription, newPhotos)
                  editingItem = null
+             }
+         )
+     }
+     
+     // Diálogo de Confirmação de Exclusão
+     if (itemToDelete != null) {
+         AlertDialog(
+             onDismissRequest = { itemToDelete = null },
+             title = { Text("Excluir Serviço") },
+             text = { Text("Tem certeza que deseja excluir o serviço da máquina '${itemToDelete?.machine}'? Essa ação não pode ser desfeita.") },
+             confirmButton = {
+                 Button(
+                     onClick = {
+                         itemToDelete?.let { viewModel.deleteMaintenanceItem(it) }
+                         itemToDelete = null
+                     },
+                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                 ) {
+                     Text("Excluir")
+                 }
+             },
+             dismissButton = {
+                 TextButton(onClick = { itemToDelete = null }) {
+                     Text("Cancelar")
+                 }
              }
          )
      }

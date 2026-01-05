@@ -10,7 +10,6 @@ import com.example.relatoriomanutencao.ui.MachineConfigurationScreen
 
 object Routes {
     const val HOME = "home"
-    const val REPORT = "report/{reportId}"
     const val MACHINE_CONFIGURATION = "machine_configuration" 
 }
 
@@ -25,7 +24,7 @@ fun AppNavigation() {
         composable(Routes.HOME) {
             HomeScreen(
                 onReportClick = { reportId ->
-                    navController.navigate("report/$reportId")
+                    // Redireciona para onde faria sentido, ou implementa detalhes
                 },
                 onLogout = {
                     // Sem auth por enquanto
@@ -35,16 +34,7 @@ fun AppNavigation() {
                 }
             )
         }
-        composable(
-            route = Routes.REPORT,
-            arguments = listOf(navArgument("reportId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val reportId = backStackEntry.arguments?.getString("reportId") ?: return@composable
-            ReportScreen(
-                reportId = reportId,
-                onBack = { navController.popBackStack() }
-            )
-        }
+        
         composable(Routes.MACHINE_CONFIGURATION) {
             MachineConfigurationScreen()
         }

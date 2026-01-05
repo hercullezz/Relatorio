@@ -224,12 +224,11 @@ object PdfGenerator {
                                 val bitmap = getBitmapFromUrlOrUri(context, uriString)
                                 if (bitmap != null) {
                                     try {
-                                        // Correção: Não redimensiona o bitmap (pixel loss).
-                                        // Define um retângulo de destino e desenha o bitmap original (High Res) nele.
+                                        // Desenha o bitmap já baixado (otimizado) no retângulo de destino
                                         val dstRect = RectF(currentX, yPosition, currentX + destWidth, yPosition + destHeight)
                                         canvas.drawBitmap(bitmap, null, dstRect, null)
                                         
-                                        // Libera memória se possível, já que desenhamos
+                                        // Libera memória
                                         bitmap.recycle()
                                     } catch (e: Exception) {
                                         e.printStackTrace()
@@ -276,39 +275,44 @@ object PdfGenerator {
         }
     }
 
-    // Função auxiliar para quebrar texto respeitando palavras
+    // Função auxiliar para quebrar texto respeitando parágrafos e largura
     private fun breakTextIntoLines(text: String, paint: Paint, maxWidth: Float): List<String> {
-        val lines = mutableListOf<String>()
-        val words = text.split(" ")
-        var currentLine = StringBuilder()
-
-        for (word in words) {
-            val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
-            val width = paint.measureText(testLine)
-
-            if (width <= maxWidth) {
-                currentLine.setLength(0)
-                currentLine.append(testLine)
-            } else {
-                if (currentLine.isNotEmpty()) {
-                    lines.add(currentLine.toString())
-                }
-                currentLine.setLength(0)
-                currentLine.append(word)
-            }
-        }
-
-        if (currentLine.isNotEmpty()) {
-            lines.add(currentLine.toString())
-        }
-        
-        // Tratamento para quebras de linha manuais (\n)
         val finalLines = mutableListOf<String>()
-        for (line in lines) {
-            if (line.contains("\n")) {
-                finalLines.addAll(line.split("\n"))
-            } else {
-                finalLines.add(line)
+        
+        // 1. Divide pelos "Enters" originais para preservar parágrafos do usuário
+        val paragraphs = text.split("\n")
+
+        for (paragraph in paragraphs) {
+            // Se o parágrafo estiver vazio (linha em branco), adiciona uma linha vazia
+            if (paragraph.isBlank()) {
+                finalLines.add("")
+                continue
+            }
+
+            // 2. Processa o "Word Wrap" (quebra de linha automática) dentro do parágrafo
+            // apenas se o texto for maior que a largura da página
+            val words = paragraph.split(" ")
+            var currentLine = StringBuilder()
+
+            for (word in words) {
+                val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
+                val width = paint.measureText(testLine)
+
+                if (width <= maxWidth) {
+                    currentLine.setLength(0)
+                    currentLine.append(testLine)
+                } else {
+                    // A linha estourou o limite, salva a anterior e começa uma nova
+                    if (currentLine.isNotEmpty()) {
+                        finalLines.add(currentLine.toString())
+                    }
+                    currentLine.setLength(0)
+                    currentLine.append(word)
+                }
+            }
+            // Adiciona o restante da última linha do parágrafo
+            if (currentLine.isNotEmpty()) {
+                finalLines.add(currentLine.toString())
             }
         }
 
@@ -341,7 +345,7 @@ object PdfGenerator {
                 val destWidth = 230f
                 val destHeight = 150f
                 
-                // Desenha High Res no retângulo definido
+                // Desenha imagem no retângulo definido
                 val dstRect = RectF(x, y + 10, x + destWidth, y + 10 + destHeight)
                 canvas.drawBitmap(bitmap, null, dstRect, null)
                 bitmap.recycle()
@@ -366,14 +370,23 @@ object PdfGenerator {
         Log.d("PdfGenerator", "Tentando baixar imagem: $path")
         return try {
             if (path.startsWith("http")) {
-                val url = URL(path)
+                var downloadUrl = path
+                // OTIMIZAÇÃO: Se for Cloudinary, aplica transformação na URL para baixar versão leve
+                // w_1024: Largura max 1024px
+                // q_auto: Qualidade automática (boa para visualização)
+                // f_jpg: Força formato JPG
+                if (downloadUrl.contains("cloudinary.com") && downloadUrl.contains("/upload/")) {
+                    downloadUrl = downloadUrl.replace("/upload/", "/upload/w_1024,q_auto,f_jpg/")
+                    Log.d("PdfGenerator", "URL Otimizada: $downloadUrl")
+                }
+
+                val url = URL(downloadUrl)
                 val connection = url.openConnection() as HttpURLConnection
                 connection.doInput = true
-                connection.connectTimeout = 5000 
-                connection.readTimeout = 5000
+                connection.connectTimeout = 10000 // Aumentado para 10s
+                connection.readTimeout = 10000
                 connection.connect()
                 val input: InputStream = connection.inputStream
-                // Decodifica a imagem original (tamanho completo)
                 val bitmap = BitmapFactory.decodeStream(input)
                 input.close()
                 bitmap

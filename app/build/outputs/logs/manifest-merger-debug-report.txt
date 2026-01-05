@@ -1,20 +1,20 @@
 -- Merging decision tree log ---
 provider#androidx.core.content.FileProvider
-INJECTED from C:\Relatorio\app\src\main\AndroidManifest.xml:20:9-28:20
+INJECTED from C:\Relatorio\app\src\main\AndroidManifest.xml:21:9-29:20
 	android:grantUriPermissions
-		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:24:13-47
+		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:25:13-47
 	android:authorities
 		INJECTED from C:\Relatorio\app\src\main\AndroidManifest.xml
-		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:22:13-60
+		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:23:13-60
 	android:exported
-		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:23:13-37
+		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:24:13-37
 	android:name
-		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:21:13-62
+		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:22:13-62
 manifest
-ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:2:1-43:12
-INJECTED from C:\Relatorio\app\src\main\AndroidManifest.xml:2:1-43:12
-INJECTED from C:\Relatorio\app\src\main\AndroidManifest.xml:2:1-43:12
-INJECTED from C:\Relatorio\app\src\main\AndroidManifest.xml:2:1-43:12
+ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:2:1-44:12
+INJECTED from C:\Relatorio\app\src\main\AndroidManifest.xml:2:1-44:12
+INJECTED from C:\Relatorio\app\src\main\AndroidManifest.xml:2:1-44:12
+INJECTED from C:\Relatorio\app\src\main\AndroidManifest.xml:2:1-44:12
 MERGED from [io.coil-kt:coil-compose:2.5.0] C:\Users\hercu\.gradle\caches\transforms-4\42c15abd1f1090d0603525820335ae68\transformed\coil-compose-2.5.0\AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.navigation:navigation-common:2.7.7] C:\Users\hercu\.gradle\caches\transforms-4\17fa9dee035834735ec711c22ed18503\transformed\navigation-common-2.7.7\AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.navigation:navigation-runtime:2.7.7] C:\Users\hercu\.gradle\caches\transforms-4\da226d931237ea125d815e69d01213a3\transformed\navigation-runtime-2.7.7\AndroidManifest.xml:17:1-22:12
@@ -53,22 +53,29 @@ MERGED from [io.coil-kt:coil-base:2.5.0] C:\Users\hercu\.gradle\caches\transform
 MERGED from [androidx.appcompat:appcompat-resources:1.6.1] C:\Users\hercu\.gradle\caches\transforms-4\bc0bf4382ff7fd3f9c4097f25cdf1682\transformed\appcompat-resources-1.6.1\AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.constraintlayout:constraintlayout:2.0.1] C:\Users\hercu\.gradle\caches\transforms-4\2e7a4968d3bda5ebe073bee9cd52ff55\transformed\constraintlayout-2.0.1\AndroidManifest.xml:2:1-11:12
 MERGED from [androidx.appcompat:appcompat:1.6.1] C:\Users\hercu\.gradle\caches\transforms-4\5e4e455268ca9ff0fc432105f9bb67bc\transformed\appcompat-1.6.1\AndroidManifest.xml:17:1-22:12
+MERGED from [com.google.android.gms:play-services-auth:20.7.0] C:\Users\hercu\.gradle\caches\transforms-4\30319b7c9a6eb3e14bf36148778d89f1\transformed\play-services-auth-20.7.0\AndroidManifest.xml:17:1-40:12
+MERGED from [com.google.android.gms:play-services-auth-api-phone:18.0.1] C:\Users\hercu\.gradle\caches\transforms-4\b7a027c0e68d87a7e4189c12c8383ef9\transformed\play-services-auth-api-phone-18.0.1\AndroidManifest.xml:2:1-7:12
+MERGED from [com.google.android.gms:play-services-auth-base:18.0.4] C:\Users\hercu\.gradle\caches\transforms-4\b4b7f0c6a1ef07a9370ea619dcf6b161\transformed\play-services-auth-base-18.0.4\AndroidManifest.xml:2:1-7:12
+MERGED from [com.google.android.gms:play-services-fido:20.0.1] C:\Users\hercu\.gradle\caches\transforms-4\293c1ef09d356962493abc156094c85a\transformed\play-services-fido-20.0.1\AndroidManifest.xml:2:1-10:12
+MERGED from [com.google.android.gms:play-services-base:18.0.1] C:\Users\hercu\.gradle\caches\transforms-4\9f98bc933c70606ac27207a3f8aaeae5\transformed\play-services-base-18.0.1\AndroidManifest.xml:16:1-24:12
+MERGED from [com.google.android.gms:play-services-tasks:18.0.1] C:\Users\hercu\.gradle\caches\transforms-4\ca58a39463eaa214ed06da71200d9d5b\transformed\play-services-tasks-18.0.1\AndroidManifest.xml:2:1-6:12
+MERGED from [com.google.android.gms:play-services-basement:18.2.0] C:\Users\hercu\.gradle\caches\transforms-4\de4aa7e2e746d9a24095a835079edc69\transformed\play-services-basement-18.2.0\AndroidManifest.xml:16:1-26:12
 MERGED from [androidx.legacy:legacy-support-v4:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\e685a6b23e00e99ab2a438bfdb91297e\transformed\legacy-support-v4-1.0.0\AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.viewpager2:viewpager2:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\688d4ab2190b4bb71c34293093784fa8\transformed\viewpager2-1.0.0\AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.fragment:fragment:1.3.6] C:\Users\hercu\.gradle\caches\transforms-4\d76aa3468811a51e30729b23c6e54c67\transformed\fragment-1.3.6\AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.activity:activity:1.8.2] C:\Users\hercu\.gradle\caches\transforms-4\30baf4ec6a8f3d9317e802e6bb51d8d4\transformed\activity-1.8.2\AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.activity:activity-compose:1.8.2] C:\Users\hercu\.gradle\caches\transforms-4\497778d66c0f9d0f77c6ab53ea6b374c\transformed\activity-compose-1.8.2\AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.activity:activity-ktx:1.8.2] C:\Users\hercu\.gradle\caches\transforms-4\b02c67f9c0425cc41ed88c06811984af\transformed\activity-ktx-1.8.2\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.legacy:legacy-support-core-ui:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\c0bd00a18ee78f4765d6ad69f4abb5e5\transformed\legacy-support-core-ui-1.0.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.dynamicanimation:dynamicanimation:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\032ac5fa9542f0ee44286a6a1d1370b9\transformed\dynamicanimation-1.0.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\32c14eff0259e2addbaa75ded681d3e0\transformed\legacy-support-core-utils-1.0.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.loader:loader:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\29fe48297e286b1aa25e4afab94a081a\transformed\loader-1.0.0\AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.work:work-runtime:2.7.1] C:\Users\hercu\.gradle\caches\transforms-4\8c5686943718144491691d5851e90e88\transformed\work-runtime-2.7.1\AndroidManifest.xml:17:1-145:12
 MERGED from [androidx.emoji2:emoji2-views-helper:1.3.0] C:\Users\hercu\.gradle\caches\transforms-4\5954e28bc9890fadd0816b4675066a33\transformed\emoji2-views-helper-1.3.0\AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.emoji2:emoji2:1.3.0] C:\Users\hercu\.gradle\caches\transforms-4\0e5d418a252fab385d51cf4e7c16d382\transformed\emoji2-1.3.0\AndroidManifest.xml:17:1-35:12
 MERGED from [androidx.lifecycle:lifecycle-process:2.7.0] C:\Users\hercu\.gradle\caches\transforms-4\33981ab5e30b0452cad2d8a249f3a36a\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:17:1-35:12
 MERGED from [androidx.lifecycle:lifecycle-livedata-core-ktx:2.7.0] C:\Users\hercu\.gradle\caches\transforms-4\789a04b8f4683ef3263521dc8bac8d6a\transformed\lifecycle-livedata-core-ktx-2.7.0\AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.lifecycle:lifecycle-service:2.7.0] C:\Users\hercu\.gradle\caches\transforms-4\9e6fc019696a7ce73ed6963d5a7b97bf\transformed\lifecycle-service-2.7.0\AndroidManifest.xml:2:1-7:12
-MERGED from [androidx.legacy:legacy-support-core-ui:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\c0bd00a18ee78f4765d6ad69f4abb5e5\transformed\legacy-support-core-ui-1.0.0\AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.dynamicanimation:dynamicanimation:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\032ac5fa9542f0ee44286a6a1d1370b9\transformed\dynamicanimation-1.0.0\AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\32c14eff0259e2addbaa75ded681d3e0\transformed\legacy-support-core-utils-1.0.0\AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.loader:loader:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\29fe48297e286b1aa25e4afab94a081a\transformed\loader-1.0.0\AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.lifecycle:lifecycle-livedata:2.7.0] C:\Users\hercu\.gradle\caches\transforms-4\b4aace126700f154538f4b771d926265\transformed\lifecycle-livedata-2.7.0\AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.7.0] C:\Users\hercu\.gradle\caches\transforms-4\3eeef73ba7e87ed7a8b7b359d90ec93d\transformed\lifecycle-livedata-core-2.7.0\AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.savedstate:savedstate-ktx:1.2.1] C:\Users\hercu\.gradle\caches\transforms-4\bb3a1eecf562e1f3d5d53b4c909684cb\transformed\savedstate-ktx-1.2.1\AndroidManifest.xml:17:1-22:12
@@ -180,8 +187,8 @@ MERGED from [com.github.parse-community.Parse-SDK-Android:parse:4.3.0] C:\Users\
 	android:name
 		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:8:22-76
 application
-ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:10:5-41:19
-INJECTED from C:\Relatorio\app\src\main\AndroidManifest.xml:10:5-41:19
+ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:10:5-42:19
+INJECTED from C:\Relatorio\app\src\main\AndroidManifest.xml:10:5-42:19
 MERGED from [androidx.compose.ui:ui-test-manifest:1.6.6] C:\Users\hercu\.gradle\caches\transforms-4\8e46f69162d87b5064c2a79dd1566adf\transformed\ui-test-manifest-1.6.6\AndroidManifest.xml:22:5-26:19
 MERGED from [androidx.compose.ui:ui-test-manifest:1.6.6] C:\Users\hercu\.gradle\caches\transforms-4\8e46f69162d87b5064c2a79dd1566adf\transformed\ui-test-manifest-1.6.6\AndroidManifest.xml:22:5-26:19
 MERGED from [androidx.compose.ui:ui-tooling-android:1.6.6] C:\Users\hercu\.gradle\caches\transforms-4\511be7a4fffc58a6870bd2030fcbab4a\transformed\ui-tooling-release\AndroidManifest.xml:22:5-26:19
@@ -194,6 +201,16 @@ MERGED from [com.google.android.material:material:1.4.0] C:\Users\hercu\.gradle\
 MERGED from [com.google.android.material:material:1.4.0] C:\Users\hercu\.gradle\caches\transforms-4\0de76e7429d231fab2708b258fa31c1c\transformed\material-1.4.0\AndroidManifest.xml:22:5-20
 MERGED from [androidx.constraintlayout:constraintlayout:2.0.1] C:\Users\hercu\.gradle\caches\transforms-4\2e7a4968d3bda5ebe073bee9cd52ff55\transformed\constraintlayout-2.0.1\AndroidManifest.xml:9:5-20
 MERGED from [androidx.constraintlayout:constraintlayout:2.0.1] C:\Users\hercu\.gradle\caches\transforms-4\2e7a4968d3bda5ebe073bee9cd52ff55\transformed\constraintlayout-2.0.1\AndroidManifest.xml:9:5-20
+MERGED from [com.google.android.gms:play-services-auth:20.7.0] C:\Users\hercu\.gradle\caches\transforms-4\30319b7c9a6eb3e14bf36148778d89f1\transformed\play-services-auth-20.7.0\AndroidManifest.xml:22:5-38:19
+MERGED from [com.google.android.gms:play-services-auth:20.7.0] C:\Users\hercu\.gradle\caches\transforms-4\30319b7c9a6eb3e14bf36148778d89f1\transformed\play-services-auth-20.7.0\AndroidManifest.xml:22:5-38:19
+MERGED from [com.google.android.gms:play-services-fido:20.0.1] C:\Users\hercu\.gradle\caches\transforms-4\293c1ef09d356962493abc156094c85a\transformed\play-services-fido-20.0.1\AndroidManifest.xml:7:5-8:19
+MERGED from [com.google.android.gms:play-services-fido:20.0.1] C:\Users\hercu\.gradle\caches\transforms-4\293c1ef09d356962493abc156094c85a\transformed\play-services-fido-20.0.1\AndroidManifest.xml:7:5-8:19
+MERGED from [com.google.android.gms:play-services-base:18.0.1] C:\Users\hercu\.gradle\caches\transforms-4\9f98bc933c70606ac27207a3f8aaeae5\transformed\play-services-base-18.0.1\AndroidManifest.xml:19:5-23:19
+MERGED from [com.google.android.gms:play-services-base:18.0.1] C:\Users\hercu\.gradle\caches\transforms-4\9f98bc933c70606ac27207a3f8aaeae5\transformed\play-services-base-18.0.1\AndroidManifest.xml:19:5-23:19
+MERGED from [com.google.android.gms:play-services-tasks:18.0.1] C:\Users\hercu\.gradle\caches\transforms-4\ca58a39463eaa214ed06da71200d9d5b\transformed\play-services-tasks-18.0.1\AndroidManifest.xml:5:5-20
+MERGED from [com.google.android.gms:play-services-tasks:18.0.1] C:\Users\hercu\.gradle\caches\transforms-4\ca58a39463eaa214ed06da71200d9d5b\transformed\play-services-tasks-18.0.1\AndroidManifest.xml:5:5-20
+MERGED from [com.google.android.gms:play-services-basement:18.2.0] C:\Users\hercu\.gradle\caches\transforms-4\de4aa7e2e746d9a24095a835079edc69\transformed\play-services-basement-18.2.0\AndroidManifest.xml:20:5-24:19
+MERGED from [com.google.android.gms:play-services-basement:18.2.0] C:\Users\hercu\.gradle\caches\transforms-4\de4aa7e2e746d9a24095a835079edc69\transformed\play-services-basement-18.2.0\AndroidManifest.xml:20:5-24:19
 MERGED from [androidx.work:work-runtime:2.7.1] C:\Users\hercu\.gradle\caches\transforms-4\8c5686943718144491691d5851e90e88\transformed\work-runtime-2.7.1\AndroidManifest.xml:30:5-143:19
 MERGED from [androidx.work:work-runtime:2.7.1] C:\Users\hercu\.gradle\caches\transforms-4\8c5686943718144491691d5851e90e88\transformed\work-runtime-2.7.1\AndroidManifest.xml:30:5-143:19
 MERGED from [androidx.emoji2:emoji2:1.3.0] C:\Users\hercu\.gradle\caches\transforms-4\0e5d418a252fab385d51cf4e7c16d382\transformed\emoji2-1.3.0\AndroidManifest.xml:23:5-33:19
@@ -227,41 +244,43 @@ MERGED from [com.facebook.soloader:soloader:0.10.1] C:\Users\hercu\.gradle\cache
 	android:fullBackupContent
 		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:14:9-54
 	tools:targetApi
-		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:18:9-29
+		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:19:9-29
 	android:allowBackup
 		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:12:9-35
 	android:theme
 		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:17:9-57
+	android:enableOnBackInvokedCallback
+		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:18:9-51
 	android:dataExtractionRules
 		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:13:9-65
 	android:name
 		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:11:9-45
 activity#com.example.relatoriomanutencao.MainActivity
-ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:30:9-40:20
+ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:31:9-41:20
 	android:label
-		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:33:13-45
+		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:34:13-45
 	android:exported
-		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:32:13-36
+		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:33:13-36
 	android:theme
-		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:34:13-61
+		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:35:13-61
 	android:name
-		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:31:13-41
+		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:32:13-41
 intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
-ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:35:13-39:29
+ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:36:13-40:29
 action#android.intent.action.MAIN
-ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:36:17-69
+ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:37:17-69
 	android:name
-		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:36:25-66
+		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:37:25-66
 category#android.intent.category.LAUNCHER
-ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:38:17-77
+ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:39:17-77
 	android:name
-		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:38:27-74
+		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:39:27-74
 meta-data#android.support.FILE_PROVIDER_PATHS
-ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:25:13-27:58
+ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:26:13-28:58
 	android:resource
-		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:27:17-55
+		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:28:17-55
 	android:name
-		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:26:17-67
+		ADDED from C:\Relatorio\app\src\main\AndroidManifest.xml:27:17-67
 uses-sdk
 INJECTED from C:\Relatorio\app\src\main\AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from C:\Relatorio\app\src\main\AndroidManifest.xml
@@ -342,6 +361,20 @@ MERGED from [androidx.constraintlayout:constraintlayout:2.0.1] C:\Users\hercu\.g
 MERGED from [androidx.constraintlayout:constraintlayout:2.0.1] C:\Users\hercu\.gradle\caches\transforms-4\2e7a4968d3bda5ebe073bee9cd52ff55\transformed\constraintlayout-2.0.1\AndroidManifest.xml:5:5-7:41
 MERGED from [androidx.appcompat:appcompat:1.6.1] C:\Users\hercu\.gradle\caches\transforms-4\5e4e455268ca9ff0fc432105f9bb67bc\transformed\appcompat-1.6.1\AndroidManifest.xml:20:5-44
 MERGED from [androidx.appcompat:appcompat:1.6.1] C:\Users\hercu\.gradle\caches\transforms-4\5e4e455268ca9ff0fc432105f9bb67bc\transformed\appcompat-1.6.1\AndroidManifest.xml:20:5-44
+MERGED from [com.google.android.gms:play-services-auth:20.7.0] C:\Users\hercu\.gradle\caches\transforms-4\30319b7c9a6eb3e14bf36148778d89f1\transformed\play-services-auth-20.7.0\AndroidManifest.xml:20:5-44
+MERGED from [com.google.android.gms:play-services-auth:20.7.0] C:\Users\hercu\.gradle\caches\transforms-4\30319b7c9a6eb3e14bf36148778d89f1\transformed\play-services-auth-20.7.0\AndroidManifest.xml:20:5-44
+MERGED from [com.google.android.gms:play-services-auth-api-phone:18.0.1] C:\Users\hercu\.gradle\caches\transforms-4\b7a027c0e68d87a7e4189c12c8383ef9\transformed\play-services-auth-api-phone-18.0.1\AndroidManifest.xml:5:5-44
+MERGED from [com.google.android.gms:play-services-auth-api-phone:18.0.1] C:\Users\hercu\.gradle\caches\transforms-4\b7a027c0e68d87a7e4189c12c8383ef9\transformed\play-services-auth-api-phone-18.0.1\AndroidManifest.xml:5:5-44
+MERGED from [com.google.android.gms:play-services-auth-base:18.0.4] C:\Users\hercu\.gradle\caches\transforms-4\b4b7f0c6a1ef07a9370ea619dcf6b161\transformed\play-services-auth-base-18.0.4\AndroidManifest.xml:5:5-44
+MERGED from [com.google.android.gms:play-services-auth-base:18.0.4] C:\Users\hercu\.gradle\caches\transforms-4\b4b7f0c6a1ef07a9370ea619dcf6b161\transformed\play-services-auth-base-18.0.4\AndroidManifest.xml:5:5-44
+MERGED from [com.google.android.gms:play-services-fido:20.0.1] C:\Users\hercu\.gradle\caches\transforms-4\293c1ef09d356962493abc156094c85a\transformed\play-services-fido-20.0.1\AndroidManifest.xml:5:5-44
+MERGED from [com.google.android.gms:play-services-fido:20.0.1] C:\Users\hercu\.gradle\caches\transforms-4\293c1ef09d356962493abc156094c85a\transformed\play-services-fido-20.0.1\AndroidManifest.xml:5:5-44
+MERGED from [com.google.android.gms:play-services-base:18.0.1] C:\Users\hercu\.gradle\caches\transforms-4\9f98bc933c70606ac27207a3f8aaeae5\transformed\play-services-base-18.0.1\AndroidManifest.xml:18:5-43
+MERGED from [com.google.android.gms:play-services-base:18.0.1] C:\Users\hercu\.gradle\caches\transforms-4\9f98bc933c70606ac27207a3f8aaeae5\transformed\play-services-base-18.0.1\AndroidManifest.xml:18:5-43
+MERGED from [com.google.android.gms:play-services-tasks:18.0.1] C:\Users\hercu\.gradle\caches\transforms-4\ca58a39463eaa214ed06da71200d9d5b\transformed\play-services-tasks-18.0.1\AndroidManifest.xml:4:5-43
+MERGED from [com.google.android.gms:play-services-tasks:18.0.1] C:\Users\hercu\.gradle\caches\transforms-4\ca58a39463eaa214ed06da71200d9d5b\transformed\play-services-tasks-18.0.1\AndroidManifest.xml:4:5-43
+MERGED from [com.google.android.gms:play-services-basement:18.2.0] C:\Users\hercu\.gradle\caches\transforms-4\de4aa7e2e746d9a24095a835079edc69\transformed\play-services-basement-18.2.0\AndroidManifest.xml:18:5-43
+MERGED from [com.google.android.gms:play-services-basement:18.2.0] C:\Users\hercu\.gradle\caches\transforms-4\de4aa7e2e746d9a24095a835079edc69\transformed\play-services-basement-18.2.0\AndroidManifest.xml:18:5-43
 MERGED from [androidx.legacy:legacy-support-v4:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\e685a6b23e00e99ab2a438bfdb91297e\transformed\legacy-support-v4-1.0.0\AndroidManifest.xml:20:5-44
 MERGED from [androidx.legacy:legacy-support-v4:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\e685a6b23e00e99ab2a438bfdb91297e\transformed\legacy-support-v4-1.0.0\AndroidManifest.xml:20:5-44
 MERGED from [androidx.viewpager2:viewpager2:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\688d4ab2190b4bb71c34293093784fa8\transformed\viewpager2-1.0.0\AndroidManifest.xml:20:5-22:41
@@ -354,6 +387,14 @@ MERGED from [androidx.activity:activity-compose:1.8.2] C:\Users\hercu\.gradle\ca
 MERGED from [androidx.activity:activity-compose:1.8.2] C:\Users\hercu\.gradle\caches\transforms-4\497778d66c0f9d0f77c6ab53ea6b374c\transformed\activity-compose-1.8.2\AndroidManifest.xml:5:5-44
 MERGED from [androidx.activity:activity-ktx:1.8.2] C:\Users\hercu\.gradle\caches\transforms-4\b02c67f9c0425cc41ed88c06811984af\transformed\activity-ktx-1.8.2\AndroidManifest.xml:5:5-44
 MERGED from [androidx.activity:activity-ktx:1.8.2] C:\Users\hercu\.gradle\caches\transforms-4\b02c67f9c0425cc41ed88c06811984af\transformed\activity-ktx-1.8.2\AndroidManifest.xml:5:5-44
+MERGED from [androidx.legacy:legacy-support-core-ui:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\c0bd00a18ee78f4765d6ad69f4abb5e5\transformed\legacy-support-core-ui-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.legacy:legacy-support-core-ui:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\c0bd00a18ee78f4765d6ad69f4abb5e5\transformed\legacy-support-core-ui-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.dynamicanimation:dynamicanimation:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\032ac5fa9542f0ee44286a6a1d1370b9\transformed\dynamicanimation-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.dynamicanimation:dynamicanimation:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\032ac5fa9542f0ee44286a6a1d1370b9\transformed\dynamicanimation-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\32c14eff0259e2addbaa75ded681d3e0\transformed\legacy-support-core-utils-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\32c14eff0259e2addbaa75ded681d3e0\transformed\legacy-support-core-utils-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.loader:loader:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\29fe48297e286b1aa25e4afab94a081a\transformed\loader-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.loader:loader:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\29fe48297e286b1aa25e4afab94a081a\transformed\loader-1.0.0\AndroidManifest.xml:20:5-44
 MERGED from [androidx.work:work-runtime:2.7.1] C:\Users\hercu\.gradle\caches\transforms-4\8c5686943718144491691d5851e90e88\transformed\work-runtime-2.7.1\AndroidManifest.xml:21:5-23:41
 MERGED from [androidx.work:work-runtime:2.7.1] C:\Users\hercu\.gradle\caches\transforms-4\8c5686943718144491691d5851e90e88\transformed\work-runtime-2.7.1\AndroidManifest.xml:21:5-23:41
 MERGED from [androidx.emoji2:emoji2-views-helper:1.3.0] C:\Users\hercu\.gradle\caches\transforms-4\5954e28bc9890fadd0816b4675066a33\transformed\emoji2-views-helper-1.3.0\AndroidManifest.xml:5:5-44
@@ -366,14 +407,6 @@ MERGED from [androidx.lifecycle:lifecycle-livedata-core-ktx:2.7.0] C:\Users\herc
 MERGED from [androidx.lifecycle:lifecycle-livedata-core-ktx:2.7.0] C:\Users\hercu\.gradle\caches\transforms-4\789a04b8f4683ef3263521dc8bac8d6a\transformed\lifecycle-livedata-core-ktx-2.7.0\AndroidManifest.xml:5:5-44
 MERGED from [androidx.lifecycle:lifecycle-service:2.7.0] C:\Users\hercu\.gradle\caches\transforms-4\9e6fc019696a7ce73ed6963d5a7b97bf\transformed\lifecycle-service-2.7.0\AndroidManifest.xml:5:5-44
 MERGED from [androidx.lifecycle:lifecycle-service:2.7.0] C:\Users\hercu\.gradle\caches\transforms-4\9e6fc019696a7ce73ed6963d5a7b97bf\transformed\lifecycle-service-2.7.0\AndroidManifest.xml:5:5-44
-MERGED from [androidx.legacy:legacy-support-core-ui:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\c0bd00a18ee78f4765d6ad69f4abb5e5\transformed\legacy-support-core-ui-1.0.0\AndroidManifest.xml:20:5-44
-MERGED from [androidx.legacy:legacy-support-core-ui:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\c0bd00a18ee78f4765d6ad69f4abb5e5\transformed\legacy-support-core-ui-1.0.0\AndroidManifest.xml:20:5-44
-MERGED from [androidx.dynamicanimation:dynamicanimation:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\032ac5fa9542f0ee44286a6a1d1370b9\transformed\dynamicanimation-1.0.0\AndroidManifest.xml:20:5-44
-MERGED from [androidx.dynamicanimation:dynamicanimation:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\032ac5fa9542f0ee44286a6a1d1370b9\transformed\dynamicanimation-1.0.0\AndroidManifest.xml:20:5-44
-MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\32c14eff0259e2addbaa75ded681d3e0\transformed\legacy-support-core-utils-1.0.0\AndroidManifest.xml:20:5-44
-MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\32c14eff0259e2addbaa75ded681d3e0\transformed\legacy-support-core-utils-1.0.0\AndroidManifest.xml:20:5-44
-MERGED from [androidx.loader:loader:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\29fe48297e286b1aa25e4afab94a081a\transformed\loader-1.0.0\AndroidManifest.xml:20:5-44
-MERGED from [androidx.loader:loader:1.0.0] C:\Users\hercu\.gradle\caches\transforms-4\29fe48297e286b1aa25e4afab94a081a\transformed\loader-1.0.0\AndroidManifest.xml:20:5-44
 MERGED from [androidx.lifecycle:lifecycle-livedata:2.7.0] C:\Users\hercu\.gradle\caches\transforms-4\b4aace126700f154538f4b771d926265\transformed\lifecycle-livedata-2.7.0\AndroidManifest.xml:20:5-44
 MERGED from [androidx.lifecycle:lifecycle-livedata:2.7.0] C:\Users\hercu\.gradle\caches\transforms-4\b4aace126700f154538f4b771d926265\transformed\lifecycle-livedata-2.7.0\AndroidManifest.xml:20:5-44
 MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.7.0] C:\Users\hercu\.gradle\caches\transforms-4\3eeef73ba7e87ed7a8b7b359d90ec93d\transformed\lifecycle-livedata-core-2.7.0\AndroidManifest.xml:20:5-44
@@ -544,6 +577,40 @@ ADDED from [com.cloudinary:cloudinary-android-ui:2.5.0] C:\Users\hercu\.gradle\c
 		ADDED from [com.cloudinary:cloudinary-android-ui:2.5.0] C:\Users\hercu\.gradle\caches\transforms-4\f3652ac8402a163e4c34e2ab14035cef\transformed\cloudinary-android-ui-2.5.0\AndroidManifest.xml:13:13-53
 	android:name
 		ADDED from [com.cloudinary:cloudinary-android-ui:2.5.0] C:\Users\hercu\.gradle\caches\transforms-4\f3652ac8402a163e4c34e2ab14035cef\transformed\cloudinary-android-ui-2.5.0\AndroidManifest.xml:11:13-87
+activity#com.google.android.gms.auth.api.signin.internal.SignInHubActivity
+ADDED from [com.google.android.gms:play-services-auth:20.7.0] C:\Users\hercu\.gradle\caches\transforms-4\30319b7c9a6eb3e14bf36148778d89f1\transformed\play-services-auth-20.7.0\AndroidManifest.xml:23:9-27:75
+	android:excludeFromRecents
+		ADDED from [com.google.android.gms:play-services-auth:20.7.0] C:\Users\hercu\.gradle\caches\transforms-4\30319b7c9a6eb3e14bf36148778d89f1\transformed\play-services-auth-20.7.0\AndroidManifest.xml:25:13-46
+	android:exported
+		ADDED from [com.google.android.gms:play-services-auth:20.7.0] C:\Users\hercu\.gradle\caches\transforms-4\30319b7c9a6eb3e14bf36148778d89f1\transformed\play-services-auth-20.7.0\AndroidManifest.xml:26:13-37
+	android:theme
+		ADDED from [com.google.android.gms:play-services-auth:20.7.0] C:\Users\hercu\.gradle\caches\transforms-4\30319b7c9a6eb3e14bf36148778d89f1\transformed\play-services-auth-20.7.0\AndroidManifest.xml:27:13-72
+	android:name
+		ADDED from [com.google.android.gms:play-services-auth:20.7.0] C:\Users\hercu\.gradle\caches\transforms-4\30319b7c9a6eb3e14bf36148778d89f1\transformed\play-services-auth-20.7.0\AndroidManifest.xml:24:13-93
+service#com.google.android.gms.auth.api.signin.RevocationBoundService
+ADDED from [com.google.android.gms:play-services-auth:20.7.0] C:\Users\hercu\.gradle\caches\transforms-4\30319b7c9a6eb3e14bf36148778d89f1\transformed\play-services-auth-20.7.0\AndroidManifest.xml:33:9-37:51
+	android:exported
+		ADDED from [com.google.android.gms:play-services-auth:20.7.0] C:\Users\hercu\.gradle\caches\transforms-4\30319b7c9a6eb3e14bf36148778d89f1\transformed\play-services-auth-20.7.0\AndroidManifest.xml:35:13-36
+	android:visibleToInstantApps
+		ADDED from [com.google.android.gms:play-services-auth:20.7.0] C:\Users\hercu\.gradle\caches\transforms-4\30319b7c9a6eb3e14bf36148778d89f1\transformed\play-services-auth-20.7.0\AndroidManifest.xml:37:13-48
+	android:permission
+		ADDED from [com.google.android.gms:play-services-auth:20.7.0] C:\Users\hercu\.gradle\caches\transforms-4\30319b7c9a6eb3e14bf36148778d89f1\transformed\play-services-auth-20.7.0\AndroidManifest.xml:36:13-107
+	android:name
+		ADDED from [com.google.android.gms:play-services-auth:20.7.0] C:\Users\hercu\.gradle\caches\transforms-4\30319b7c9a6eb3e14bf36148778d89f1\transformed\play-services-auth-20.7.0\AndroidManifest.xml:34:13-89
+activity#com.google.android.gms.common.api.GoogleApiActivity
+ADDED from [com.google.android.gms:play-services-base:18.0.1] C:\Users\hercu\.gradle\caches\transforms-4\9f98bc933c70606ac27207a3f8aaeae5\transformed\play-services-base-18.0.1\AndroidManifest.xml:20:9-22:45
+	android:exported
+		ADDED from [com.google.android.gms:play-services-base:18.0.1] C:\Users\hercu\.gradle\caches\transforms-4\9f98bc933c70606ac27207a3f8aaeae5\transformed\play-services-base-18.0.1\AndroidManifest.xml:22:19-43
+	android:theme
+		ADDED from [com.google.android.gms:play-services-base:18.0.1] C:\Users\hercu\.gradle\caches\transforms-4\9f98bc933c70606ac27207a3f8aaeae5\transformed\play-services-base-18.0.1\AndroidManifest.xml:21:19-78
+	android:name
+		ADDED from [com.google.android.gms:play-services-base:18.0.1] C:\Users\hercu\.gradle\caches\transforms-4\9f98bc933c70606ac27207a3f8aaeae5\transformed\play-services-base-18.0.1\AndroidManifest.xml:20:19-85
+meta-data#com.google.android.gms.version
+ADDED from [com.google.android.gms:play-services-basement:18.2.0] C:\Users\hercu\.gradle\caches\transforms-4\de4aa7e2e746d9a24095a835079edc69\transformed\play-services-basement-18.2.0\AndroidManifest.xml:21:9-23:69
+	android:value
+		ADDED from [com.google.android.gms:play-services-basement:18.2.0] C:\Users\hercu\.gradle\caches\transforms-4\de4aa7e2e746d9a24095a835079edc69\transformed\play-services-basement-18.2.0\AndroidManifest.xml:23:13-66
+	android:name
+		ADDED from [com.google.android.gms:play-services-basement:18.2.0] C:\Users\hercu\.gradle\caches\transforms-4\de4aa7e2e746d9a24095a835079edc69\transformed\play-services-basement-18.2.0\AndroidManifest.xml:22:13-58
 uses-permission#android.permission.WAKE_LOCK
 ADDED from [androidx.work:work-runtime:2.7.1] C:\Users\hercu\.gradle\caches\transforms-4\8c5686943718144491691d5851e90e88\transformed\work-runtime-2.7.1\AndroidManifest.xml:25:5-68
 	android:name

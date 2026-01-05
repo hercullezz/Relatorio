@@ -178,11 +178,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         
                         // Lista Final para o campo 'external_photos':
                         // Mantemos os links do Cloudinary que já existiam + os novos uploads.
-                        // Obs: Não mexemos no campo legado 'photos' do Back4App, ele fica lá quieto (read-only).
-                        
-                        // Filtra para pegar apenas os links que parecem ser do Cloudinary ou externos (não os do Back4App legacy)
-                        // Se o usuário remover uma foto legacy, ela vai sumir da UI, mas não deletamos o arquivo físico no Back4App para evitar complexidade agora.
-                        
                         val finalExternalList = existingLinks.filter { !it.contains("back4app") } + newUploadedUrls
                         
                         parseObject.put("external_photos", finalExternalList)
@@ -255,16 +250,55 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     
-    fun cleanOldCloudData() {
+    // --- NOVO: Limpeza Inteligente de Imagens ---
+    // Remove APENAS as imagens (links) dos relatórios antigos, mantendo o texto.
+    // Nota: A exclusão física no Cloudinary é feita via tag ou manual, pois não usamos a secret key aqui.
+    fun cleanOldImagesOnly() {
         viewModelScope.launch(Dispatchers.IO) {
-            withContext(Dispatchers.Main) { Toast.makeText(getApplication(), "Iniciando limpeza...", Toast.LENGTH_SHORT).show() }
+            withContext(Dispatchers.Main) { Toast.makeText(getApplication(), "Limpando fotos antigas...", Toast.LENGTH_SHORT).show() }
             try {
-                ParseCloud.callFunction<String>("deleteReportsOlderThan8Days", emptyMap<String, Any>())                
-                withContext(Dispatchers.Main) { Toast.makeText(getApplication(), "Limpeza concluída!", Toast.LENGTH_SHORT).show() }
+                val calendar = java.util.Calendar.getInstance()
+                calendar.add(java.util.Calendar.DAY_OF_YEAR, -30) // Ex: 30 dias atrás
+                val cutOffDate = calendar.time
+                
+                // Busca serviços antigos que tenham fotos
+                val query = ParseQuery.getQuery<ParseObject>("Servico")
+                query.whereLessThan("createdAt", cutOffDate)
+                
+                // Precisamos buscar todos para verificar se têm o campo external_photos preenchido
+                // (O Back4App tem limites, então pegamos os 1000 mais antigos)
+                query.limit = 1000
+                val oldServices = query.find()
+                
+                var count = 0
+                for (service in oldServices) {
+                    val photos = service.getList<String>("external_photos")
+                    val legacyPhotos = service.get("photos")
+                    
+                    if ((photos != null && photos.isNotEmpty()) || legacyPhotos != null) {
+                        // Limpa os campos de foto
+                        service.remove("external_photos")
+                        service.remove("photos") // Remove também as legacy se houver
+                        service.save()
+                        count++
+                    }
+                }
+                
+                refreshMaintenanceList()
+                withContext(Dispatchers.Main) { 
+                    Toast.makeText(getApplication(), "Fotos removidas de $count relatórios antigos.\nTexto preservado.", Toast.LENGTH_LONG).show() 
+                }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) { Toast.makeText(getApplication(), "Erro na limpeza: ${e.message}", Toast.LENGTH_SHORT).show() }
             }
         }
+    }
+
+    // Mantido para compatibilidade se o botão antigo ainda existir, mas agora redireciona para a lógica nova se desejar,
+    // ou mantém a lógica de apagar TUDO (o que o usuário NÃO quer mais).
+    // Vou renomear/desativar a lógica destrutiva antiga para segurança.
+    fun cleanOldCloudData() {
+         cleanOldImagesOnly()
     }
     
     // --- ESTOQUE (BACK4APP) ---

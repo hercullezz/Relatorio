@@ -1,24 +1,21 @@
 package com.example.relatoriomanutencao.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ExitToApp
-import androidx.compose.material.icons.filled.Settings // Importação adicionada
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.relatoriomanutencao.viewmodel.ReportViewModel
-import kotlinx.coroutines.launch
+import com.example.relatoriomanutencao.viewmodel.MainViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -26,52 +23,35 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(
-    // authViewModel: AuthViewModel = viewModel(), // Removido temporariamente
-    reportViewModel: ReportViewModel = viewModel(),
-    onReportClick: (String) -> Unit,
+    viewModel: MainViewModel = viewModel(),
+    onReportClick: (String) -> Unit, // Mantido para compatibilidade de assinatura, mas pode redirecionar para detalhes
     onLogout: () -> Unit,
-    onNavigateToMachineConfig: () -> Unit // Novo parâmetro adicionado
+    onNavigateToMachineConfig: () -> Unit
 ) {
-    val reports by reportViewModel.reports.collectAsState()
-    val isLoading by reportViewModel.isLoading.collectAsState()
-    val error by reportViewModel.error.collectAsState()
-    val coroutineScope = rememberCoroutineScope()
-
+    val maintenanceItems by viewModel.maintenanceItems.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    
     // Estados para o diálogo de confirmação de exclusão
     var showDeleteDialog by remember { mutableStateOf(false) }
-    var reportToDeleteId by remember { mutableStateOf<String?>(null) }
-    var reportToDeleteTitle by remember { mutableStateOf<String?>(null) }
+    var itemToDelete by remember { mutableStateOf<com.example.relatoriomanutencao.data.MaintenanceItem?>(null) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Relatórios") },
+                title = { Text("Histórico de Serviços") },
                 actions = {
-                    // Botão para navegar para a tela de configuração de máquinas
                     IconButton(onClick = onNavigateToMachineConfig) {
                         Icon(Icons.Default.Settings, contentDescription = "Configurar Máquinas")
                     }
-                    /* Logout desabilitado por enquanto
-                    IconButton(onClick = {
-                        // authViewModel.logout()
-                        onLogout()
-                    }) {
-                        Icon(Icons.Default.ExitToApp, contentDescription = "Logout")
-                    }
-                    */
                 }
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = {
-                coroutineScope.launch {
-                    val dailyReport = reportViewModel.createOrOpenDailyReport()
-                    dailyReport?.let { report ->
-                        onReportClick(report.id)
-                    }
-                }
+                // Redireciona para a rota "new" que é a tela de Novo Serviço
+                onReportClick("new_service") 
             }) {
-                Icon(Icons.Default.Add, contentDescription = "Novo Relatório")
+                Icon(Icons.Default.Add, contentDescription = "Novo Serviço")
             }
         }
     ) { padding ->
@@ -79,62 +59,48 @@ fun HomeScreen(
             .fillMaxSize()
             .padding(padding)) {
             
-            when {
-                isLoading -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-                error != null -> {
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            "Aviso: ${error}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center)
+                )
             }
             
             LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                items(reports) { report ->
-                    val dateFormatter = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) }
-                    val displayDateFormatter = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
-                    
-                    val formattedTitle = try {
-                        val date = dateFormatter.parse(report.title)
-                        date?.let { displayDateFormatter.format(it) } ?: report.title
-                    } catch (e: Exception) {
-                        report.title // Fallback if parsing fails
-                    }
+                items(maintenanceItems) { item ->
+                    val dateString = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(item.date))
 
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(8.dp)
                             .combinedClickable(
-                                onClick = { onReportClick(report.id) },
+                                onClick = { 
+                                    // Detalhes ou Edição futura
+                                },
                                 onLongClick = { 
-                                    reportToDeleteId = report.id
-                                    reportToDeleteTitle = formattedTitle // Usar o título formatado para a confirmação
+                                    itemToDelete = item
                                     showDeleteDialog = true
                                 }
                             ),
                         elevation = CardDefaults.cardElevation(4.dp)
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            Text(text = formattedTitle, style = MaterialTheme.typography.titleMedium)
-                            Text(text = "Criado por: ${report.createdBy}", style = MaterialTheme.typography.bodySmall)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(text = item.machine, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Text(text = dateString, style = MaterialTheme.typography.bodySmall)
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(text = item.serviceType, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(text = item.description, style = MaterialTheme.typography.bodyMedium, maxLines = 3)
                         }
                     }
                 }
                 
-                if (reports.isEmpty() && !isLoading) {
+                if (maintenanceItems.isEmpty() && !isLoading) {
                     item {
                         Box(
                             modifier = Modifier
@@ -143,7 +109,7 @@ fun HomeScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                "Nenhum relatório encontrado.\nClique no + para criar um novo.",
+                                "Nenhum serviço registrado.\nClique no + para adicionar.",
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
@@ -153,20 +119,17 @@ fun HomeScreen(
         }
 
         // Diálogo de confirmação de exclusão
-        if (showDeleteDialog) {
+        if (showDeleteDialog && itemToDelete != null) {
             AlertDialog(
                 onDismissRequest = { showDeleteDialog = false },
                 title = { Text("Confirmar Exclusão") },
-                text = { Text("Você tem certeza que deseja excluir o relatório do dia ${reportToDeleteTitle}?") },
+                text = { Text("Deseja excluir o serviço na máquina ${itemToDelete?.machine}?") },
                 confirmButton = {
                     Button(
                         onClick = {
-                            reportToDeleteId?.let { id ->
-                                reportViewModel.deleteReport(id)
-                            }
+                            itemToDelete?.let { viewModel.deleteMaintenanceItem(it) }
                             showDeleteDialog = false
-                            reportToDeleteId = null
-                            reportToDeleteTitle = null
+                            itemToDelete = null
                         }
                     ) {
                         Text("Excluir")
@@ -175,8 +138,7 @@ fun HomeScreen(
                 dismissButton = {
                     Button(onClick = { 
                         showDeleteDialog = false
-                        reportToDeleteId = null
-                        reportToDeleteTitle = null
+                        itemToDelete = null
                     }) {
                         Text("Cancelar")
                     }

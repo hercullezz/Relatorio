@@ -13,7 +13,9 @@ import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.ImageNotSupported
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -43,6 +45,9 @@ fun MachineConfigurationScreen(
     var showAddLineDialog by remember { mutableStateOf(false) }
     var showAddMachineDialog by remember { mutableStateOf(false) }
     var selectedLineForMachine by remember { mutableStateOf<ProductionLine?>(null) }
+    
+    // Estado para Limpeza de Nuvem
+    var showCleanCloudDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -94,17 +99,60 @@ fun MachineConfigurationScreen(
             contentPadding = PaddingValues(bottom = 80.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // --- Seção de Nuvem (Movida da antiga CloudScreen) ---
             item {
-                Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    ),
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                             Icon(Icons.Filled.ImageNotSupported, contentDescription = null, tint = MaterialTheme.colorScheme.onErrorContainer)
+                             Spacer(modifier = Modifier.width(8.dp))
+                             Text(
+                                "Limpeza de Nuvem",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Libere espaço removendo as fotos dos relatórios antigos (>30 dias). O texto do histórico será mantido.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Button(
+                            onClick = { showCleanCloudDialog = true },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error
+                            ),
+                            modifier = Modifier.align(Alignment.End),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Limpar Fotos Antigas")
+                        }
+                    }
+                }
+                
+                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+            }
+            
+            item {
+                Column(modifier = Modifier.padding(bottom = 8.dp)) {
                     Text(
                         text = "Gerenciamento de Máquinas",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.ExtraBold,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Text(
                         text = "Organize suas linhas de produção e equipamentos.",
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -194,6 +242,31 @@ fun MachineConfigurationScreen(
             onConfirm = { name ->
                 viewModel.addMachine(name, selectedLineForMachine?.id)
                 showAddMachineDialog = false
+            }
+        )
+    }
+    
+    // Dialogo de confirmação de limpeza
+    if (showCleanCloudDialog) {
+        AlertDialog(
+            onDismissRequest = { showCleanCloudDialog = false },
+            icon = { Icon(Icons.Filled.Warning, contentDescription = null) },
+            title = { Text("Confirmar Limpeza") },
+            text = { Text("Deseja remover as FOTOS dos relatórios anteriores a 30 dias?\n\nO texto dos relatórios PERMANECERÁ no histórico, mas as imagens não serão mais exibidas.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.cleanOldImagesOnly()
+                        showCleanCloudDialog = false
+                    }
+                ) {
+                    Text("Sim, Remover Fotos")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCleanCloudDialog = false }) {
+                    Text("Cancelar")
+                }
             }
         )
     }

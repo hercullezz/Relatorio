@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Save
@@ -28,7 +27,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.relatoriomanutencao.ui.CloudScreen
 import com.example.relatoriomanutencao.ui.MachineConfigurationScreen
 import com.example.relatoriomanutencao.ui.NewMaintenanceScreen
 import com.example.relatoriomanutencao.ui.SavedReportsScreen
@@ -100,18 +98,7 @@ fun MainApp() {
                         }
                     }
                 )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.Cloud, contentDescription = "Nuvem") },
-                    label = { Text("Nuvem") },
-                    selected = currentRoute == "cloud",
-                    onClick = {
-                        navController.navigate("cloud") {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
-                )
+                // Removida aba "Nuvem" daqui. A funcionalidade foi para "Config".
                 NavigationBarItem(
                     icon = { Icon(Icons.Default.Inventory, contentDescription = "Estoque") },
                     label = { Text("Estoque") },
@@ -147,7 +134,6 @@ fun MainApp() {
             composable("new") { NewMaintenanceScreen(viewModel) }
             composable("services") { ServicesListScreen(viewModel) }
             composable("saved") { SavedReportsScreen() }
-            composable("cloud") { CloudScreen() }
             composable("stock") { StockScreen(viewModel) }
             composable("config") { MachineConfigurationScreen(viewModel) }
         }
