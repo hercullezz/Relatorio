@@ -8,10 +8,10 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
-import android.net.Uri
 import android.os.Environment
 import android.util.Log
 import android.widget.Toast
+import androidx.core.net.toUri
 import com.example.relatoriomanutencao.data.MaintenanceItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -34,10 +34,6 @@ object PdfGenerator {
     private const val MARGIN = 40f
     private const val CONTENT_WIDTH = PAGE_WIDTH - (MARGIN * 2)
 
-    suspend fun generateMaintenanceReport(context: Context, item: MaintenanceItem) {
-        generateConsolidatedReport(context, listOf(item))
-    }
-
     suspend fun generateConsolidatedReport(context: Context, items: List<MaintenanceItem>) {
         withContext(Dispatchers.IO) {
             if (items.isEmpty()) {
@@ -48,10 +44,11 @@ object PdfGenerator {
             }
 
             val document = PdfDocument()
-            val pageInfo = PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, 1).create()
-            
+
             // Estado da paginação
             var pageNumber = 1
+            // A info da página é a mesma para todas as páginas
+            var pageInfo = PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create()
             var page = document.startPage(pageInfo)
             var canvas = page.canvas
             var yPosition = MARGIN
@@ -90,18 +87,31 @@ object PdfGenerator {
             if (now.get(Calendar.HOUR_OF_DAY) < 10) {
                 now.add(Calendar.DAY_OF_YEAR, -1)
             }
-            
+
             val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
             val fileNameDateFormat = SimpleDateFormat("dd-MM-yyyy", Locale.getDefault())
             val reportDate = dateFormat.format(now.time)
             val reportDateFilename = fileNameDateFormat.format(now.time)
             val shiftName = "3º Turno (21:30 - 05:20)"
 
-            // --- Helper de Nova Página ---
+            // --- Helpers de Paginação e Rodapé ---
+            fun drawFooter(canvas: android.graphics.Canvas, pageNum: Int) {
+                val yPos = PAGE_HEIGHT - 20f // Posição a 20px da parte inferior
+                val paintFooter = Paint().apply {
+                    textSize = 8f
+                    color = Color.GRAY
+                    textAlign = Paint.Align.CENTER
+                }
+                val footerText = "Página $pageNum - Relatório gerado em ${SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())}"
+                canvas.drawText(footerText, PAGE_WIDTH / 2f, yPos, paintFooter)
+            }
+
             fun checkPageBreak(heightNeeded: Float) {
                 if (yPosition + heightNeeded > PAGE_HEIGHT - MARGIN) {
+                    drawFooter(canvas, pageNumber)
                     document.finishPage(page)
                     pageNumber++
+                    pageInfo = PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create()
                     page = document.startPage(pageInfo)
                     canvas = page.canvas
                     yPosition = MARGIN
@@ -128,35 +138,28 @@ object PdfGenerator {
                 checkPageBreak(30f)
                 canvas.drawText("GRÁFICOS DE PRODUÇÃO E LINHAS", MARGIN, yPosition, paintSectionHeader)
                 yPosition += 20
-                
-                // Processa de 2 em 2
+
                 val chunks = graphicsItems.chunked(2)
-                
+
                 for (chunk in chunks) {
-                    // Altura da linha de gráficos (estimada: Título + Imagem + Obs)
                     val rowHeight = 200f
                     checkPageBreak(rowHeight)
-                    
-                    // Se o chunk tem 1 item, desenha centralizado
+
                     if (chunk.size == 1) {
                         val item = chunk[0]
                         drawGraphItem(context, canvas, item, MARGIN + (CONTENT_WIDTH / 4), yPosition)
-                    } 
-                    // Se tem 2 itens, desenha lado a lado
+                    }
                     else {
                         val item1 = chunk[0]
                         val item2 = chunk[1]
-                        
-                        // Coluna 1
+
                         drawGraphItem(context, canvas, item1, MARGIN, yPosition)
-                        
-                        // Coluna 2 (Meio da página + margemzinha)
                         drawGraphItem(context, canvas, item2, MARGIN + (CONTENT_WIDTH / 2) + 10, yPosition)
                     }
-                    
-                    yPosition += rowHeight + 20 // Avança para próxima linha
+
+                    yPosition += rowHeight + 20
                 }
-                
+
                 yPosition += 10
                 canvas.drawLine(MARGIN, yPosition, PAGE_WIDTH - MARGIN, yPosition, paintLine)
                 yPosition += 20
@@ -170,36 +173,31 @@ object PdfGenerator {
 
                 serviceItems.forEach { (machineName, maintenanceList) ->
                     checkPageBreak(40f)
-                    
+
                     val bgPaint = Paint().apply { color = Color.rgb(240, 240, 240) }
                     canvas.drawRect(MARGIN, yPosition - 12, PAGE_WIDTH - MARGIN, yPosition + 8, bgPaint)
                     canvas.drawText(machineName, MARGIN + 5, yPosition, paintTextBold)
                     yPosition += 20
 
-                    for (item in maintenanceList) {
-                        // --- Word Wrap (Texto fluído) ---
-                        val maxWidth = CONTENT_WIDTH - 20 // Margem interna
+                    for (item in maintenanceList.reversed()) {
+                        val maxWidth = CONTENT_WIDTH - 20
                         val descLines = breakTextIntoLines(item.description, paintTextNormal, maxWidth)
-                        
                         val heightNeeded = 20f + (descLines.size * 12f)
-                        
-                        // --- TRATAMENTO DE FOTOS MÚLTIPLAS ---
-                        // Pega até 3 fotos
+
                         val photoUris = item.photoUris.split(",").filter { it.isNotBlank() }.take(3)
                         val hasPhotos = photoUris.isNotEmpty()
-                        
-                        // Se tiver foto, reserva altura (100px imagem + 10px margem)
+
                         val photosRowHeight = if (hasPhotos) 110f else 0f
-                        
+
                         checkPageBreak(heightNeeded + photosRowHeight)
 
-                        val typePaint = Paint().apply { 
+                        val typePaint = Paint().apply {
                             textSize = 10f
                             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                             color = when(item.serviceType) {
                                 "Corretiva" -> Color.RED
                                 "Preventiva" -> Color.rgb(0, 100, 0)
-                                "Informação" -> Color.rgb(0, 0, 150) // Azul
+                                "Informação" -> Color.rgb(0, 0, 150)
                                 else -> Color.BLACK
                             }
                         }
@@ -210,49 +208,39 @@ object PdfGenerator {
                             canvas.drawText(line, MARGIN + 10, yPosition, paintTextNormal)
                             yPosition += 12
                         }
-                        
-                        // --- DESENHAR ATÉ 3 FOTOS LADO A LADO ---
+
                         if (hasPhotos) {
                             yPosition += 5
-                            
-                            // Tamanho do layout na página (Pontos PDF)
+
                             val destWidth = 150f
                             val destHeight = 100f
                             var currentX = MARGIN + 10f
-                            
+
                             for (uriString in photoUris) {
                                 val bitmap = getBitmapFromUrlOrUri(context, uriString)
                                 if (bitmap != null) {
                                     try {
-                                        // Desenha o bitmap já baixado (otimizado) no retângulo de destino
                                         val dstRect = RectF(currentX, yPosition, currentX + destWidth, yPosition + destHeight)
                                         canvas.drawBitmap(bitmap, null, dstRect, null)
-                                        
-                                        // Libera memória
                                         bitmap.recycle()
                                     } catch (e: Exception) {
                                         e.printStackTrace()
                                     }
                                 }
-                                // Avança X para a próxima foto (largura + 10px de espaçamento)
                                 currentX += destWidth + 10
                             }
-                            
+
                             yPosition += photosRowHeight
                         }
-                        
+
                         yPosition += 8
                     }
                     yPosition += 10
                 }
             }
 
-            // Rodapé
-            checkPageBreak(30f)
-            yPosition += 20
-            val paintFooter = Paint().apply { textSize = 8f; color = Color.GRAY; textAlign = Paint.Align.CENTER }
-            canvas.drawText("Relatório gerado via App Relatório Manutenção em ${SimpleDateFormat("dd/MM/yyyy HH:mm").format(Date())}", PAGE_WIDTH / 2f, yPosition, paintFooter)
-
+            // Finaliza a última página
+            drawFooter(canvas, pageNumber)
             document.finishPage(page)
 
             val timeStamp = SimpleDateFormat("HHmm", Locale.getDefault()).format(Date())
@@ -275,24 +263,18 @@ object PdfGenerator {
         }
     }
 
-    // Função auxiliar para quebrar texto respeitando parágrafos e largura
     private fun breakTextIntoLines(text: String, paint: Paint, maxWidth: Float): List<String> {
         val finalLines = mutableListOf<String>()
-        
-        // 1. Divide pelos "Enters" originais para preservar parágrafos do usuário
-        val paragraphs = text.split("\n")
+        val paragraphs = text.split("\n") // Correção da quebra de linha
 
         for (paragraph in paragraphs) {
-            // Se o parágrafo estiver vazio (linha em branco), adiciona uma linha vazia
             if (paragraph.isBlank()) {
                 finalLines.add("")
                 continue
             }
 
-            // 2. Processa o "Word Wrap" (quebra de linha automática) dentro do parágrafo
-            // apenas se o texto for maior que a largura da página
             val words = paragraph.split(" ")
-            var currentLine = StringBuilder()
+            val currentLine = StringBuilder()
 
             for (word in words) {
                 val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
@@ -302,7 +284,6 @@ object PdfGenerator {
                     currentLine.setLength(0)
                     currentLine.append(testLine)
                 } else {
-                    // A linha estourou o limite, salva a anterior e começa uma nova
                     if (currentLine.isNotEmpty()) {
                         finalLines.add(currentLine.toString())
                     }
@@ -310,16 +291,13 @@ object PdfGenerator {
                     currentLine.append(word)
                 }
             }
-            // Adiciona o restante da última linha do parágrafo
             if (currentLine.isNotEmpty()) {
                 finalLines.add(currentLine.toString())
             }
         }
-
         return finalLines
     }
-    
-    // Função auxiliar para desenhar um item gráfico (Mini Card)
+
     private fun drawGraphItem(context: Context, canvas: android.graphics.Canvas, item: MaintenanceItem, x: Float, y: Float) {
         val paintTextBold = Paint().apply {
             textSize = 9f
@@ -330,22 +308,15 @@ object PdfGenerator {
             textSize = 8f
             color = Color.DKGRAY
         }
-        
-        // Título
         canvas.drawText(item.machine, x, y, paintTextBold)
-        
-        // Imagem
+
         val photoUris = item.photoUris.split(",").filter { it.isNotBlank() }
         if (photoUris.isNotEmpty()) {
             val imgUrl = photoUris[0]
             val bitmap = getBitmapFromUrlOrUri(context, imgUrl)
-            
             if (bitmap != null) {
-                // Layout size
                 val destWidth = 230f
                 val destHeight = 150f
-                
-                // Desenha imagem no retângulo definido
                 val dstRect = RectF(x, y + 10, x + destWidth, y + 10 + destHeight)
                 canvas.drawBitmap(bitmap, null, dstRect, null)
                 bitmap.recycle()
@@ -353,8 +324,7 @@ object PdfGenerator {
                 canvas.drawText("[Imagem não carregada]", x, y + 50, paintTextSmall)
             }
         }
-        
-        // Obs
+
         if (item.description.isNotBlank() && item.description != "Registro de Gráfico de Produção") {
              val wrappedDesc = breakTextIntoLines(item.description, paintTextSmall, 230f)
              var textY = y + 170
@@ -364,26 +334,21 @@ object PdfGenerator {
              }
         }
     }
-    
+
     // Tenta carregar imagem da URL (Nuvem) ou URI (Local - Cache)
     private fun getBitmapFromUrlOrUri(context: Context, path: String): Bitmap? {
         Log.d("PdfGenerator", "Tentando baixar imagem: $path")
         return try {
             if (path.startsWith("http")) {
                 var downloadUrl = path
-                // OTIMIZAÇÃO: Se for Cloudinary, aplica transformação na URL para baixar versão leve
-                // w_1024: Largura max 1024px
-                // q_auto: Qualidade automática (boa para visualização)
-                // f_jpg: Força formato JPG
                 if (downloadUrl.contains("cloudinary.com") && downloadUrl.contains("/upload/")) {
                     downloadUrl = downloadUrl.replace("/upload/", "/upload/w_1024,q_auto,f_jpg/")
                     Log.d("PdfGenerator", "URL Otimizada: $downloadUrl")
                 }
-
                 val url = URL(downloadUrl)
                 val connection = url.openConnection() as HttpURLConnection
                 connection.doInput = true
-                connection.connectTimeout = 10000 // Aumentado para 10s
+                connection.connectTimeout = 10000
                 connection.readTimeout = 10000
                 connection.connect()
                 val input: InputStream = connection.inputStream
@@ -391,8 +356,9 @@ object PdfGenerator {
                 input.close()
                 bitmap
             } else {
-                val uri = Uri.parse(path)
-                context.contentResolver.openInputStream(uri)?.use { 
+                // Uso da KTX para conversão de String para Uri
+                val uri = path.toUri()
+                context.contentResolver.openInputStream(uri)?.use {
                     BitmapFactory.decodeStream(it)
                 }
             }
