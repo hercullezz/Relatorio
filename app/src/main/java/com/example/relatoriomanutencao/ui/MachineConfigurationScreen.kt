@@ -27,7 +27,6 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.relatoriomanutencao.data.Machine
 import com.example.relatoriomanutencao.data.ProductionLine
 import com.example.relatoriomanutencao.viewmodel.MainViewModel
@@ -35,7 +34,8 @@ import com.example.relatoriomanutencao.viewmodel.MainViewModel
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun MachineConfigurationScreen(
-    viewModel: MainViewModel = viewModel()
+    viewModel: MainViewModel,
+    onLogout: () -> Unit
 ) {
     val productionLines by viewModel.allProductionLines.collectAsState()
     val allMachines by viewModel.allMachines.collectAsState()
@@ -270,6 +270,19 @@ fun MachineConfigurationScreen(
                     },
                     onDeleteMachine = { viewModel.deleteMachine(it) }
                 )
+            }
+            
+            // Botão de Logout Adicionado
+            item {
+                Spacer(modifier = Modifier.height(24.dp))
+                Button(
+                    onClick = onLogout,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Sair (Logout)", color = MaterialTheme.colorScheme.onTertiaryContainer)
+                }
+                Spacer(modifier = Modifier.height(24.dp)) // Espaço extra no final
             }
         }
     }

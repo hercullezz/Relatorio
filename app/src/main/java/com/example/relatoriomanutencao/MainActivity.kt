@@ -20,6 +20,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -32,19 +35,21 @@ import com.example.relatoriomanutencao.ui.NewMaintenanceScreen
 import com.example.relatoriomanutencao.ui.SavedReportsScreen
 import com.example.relatoriomanutencao.ui.ServicesListScreen
 import com.example.relatoriomanutencao.ui.StockScreen
+import com.example.relatoriomanutencao.ui.login.LoginScreen
 import com.example.relatoriomanutencao.ui.theme.RelatorioManutencaoTheme
 import com.example.relatoriomanutencao.viewmodel.MainViewModel
+import com.parse.ParseUser
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            RelatorioManutencaoTheme { 
+            RelatorioManutencaoTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MainApp()
+                    AuthGate()
                 }
             }
         }
@@ -52,7 +57,25 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MainApp() {
+fun AuthGate() {
+    var showLoginScreen by rememberSaveable { mutableStateOf(ParseUser.getCurrentUser() == null) }
+
+    if (showLoginScreen) {
+        LoginScreen(
+            onLoginSuccess = { showLoginScreen = false }
+        )
+    } else {
+        MainApp(
+            onLogout = {
+                ParseUser.logOut()
+                showLoginScreen = true
+            }
+        )
+    }
+}
+
+@Composable
+fun MainApp(onLogout: () -> Unit) {
     val navController = rememberNavController()
     val viewModel: MainViewModel = viewModel()
 
@@ -98,7 +121,6 @@ fun MainApp() {
                         }
                     }
                 )
-                // Removida aba "Nuvem" daqui. A funcionalidade foi para "Config".
                 NavigationBarItem(
                     icon = { Icon(Icons.Default.Inventory, contentDescription = "Estoque") },
                     label = { Text("Estoque") },
@@ -135,7 +157,7 @@ fun MainApp() {
             composable("services") { ServicesListScreen(viewModel) }
             composable("saved") { SavedReportsScreen() }
             composable("stock") { StockScreen(viewModel) }
-            composable("config") { MachineConfigurationScreen(viewModel) }
+            composable("config") { MachineConfigurationScreen(viewModel, onLogout) }
         }
     }
 }
