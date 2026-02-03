@@ -6,10 +6,10 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Inventory
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
@@ -25,10 +25,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -66,17 +66,26 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun AuthGate() {
-    var showLoginScreen by rememberSaveable { mutableStateOf(ParseUser.getCurrentUser() == null) }
+    // A única fonte da verdade sobre o estado de autenticação.
+    val currentUserState = remember { mutableStateOf(ParseUser.getCurrentUser()) }
+    val user = currentUserState.value
 
-    if (showLoginScreen) {
+    if (user == null) {
+        // Se não há usuário, mostra a tela de login.
         LoginScreen(
-            onLoginSuccess = { showLoginScreen = false }
+            onLoginSuccess = {
+                // Atualiza nosso estado quando o login for bem-sucedido.
+                currentUserState.value = ParseUser.getCurrentUser()
+            }
         )
     } else {
+        // Se há um usuário, mostra a tela principal.
         MainApp(
+            user = user, // Passa o usuário como um parâmetro.
             onLogout = {
                 ParseUser.logOut()
-                showLoginScreen = true
+                // Atualiza nosso estado para nulo após o logout.
+                currentUserState.value = null
             }
         )
     }
@@ -84,51 +93,39 @@ fun AuthGate() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainApp(onLogout: () -> Unit) {
+fun MainApp(user: ParseUser, onLogout: () -> Unit) { // Recebe o usuário como parâmetro
     val navController = rememberNavController()
     val viewModel: MainViewModel = viewModel()
     var showLogoutDialog by remember { mutableStateOf(false) }
 
-    // Pega o nome do usuário logado
-    val currentUser = ParseUser.getCurrentUser()
-    val displayName = currentUser?.getString("name") ?: currentUser?.username ?: "Usuário"
+    // Usa diretamente o objeto de usuário recebido.
+    val isAdmin = user.getBoolean("isAdmin")
+    val displayName = user.getString("name") ?: user.username ?: "Usuário"
+
 
     if (showLogoutDialog) {
-        AlertDialog(
-            onDismissRequest = { showLogoutDialog = false },
-            title = { Text("Confirmar Saída") },
-            text = { Text("Deseja realmente sair do seu usuário?") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showLogoutDialog = false
-                        onLogout()
-                    }
-                ) {
-                    Text("Sair")
-                }
+        LogoutConfirmationDialog(
+            onConfirmLogout = {
+                showLogoutDialog = false
+                onLogout()
             },
-            dismissButton = {
-                TextButton(onClick = { showLogoutDialog = false }) {
-                    Text("Cancelar")
-                }
-            }
+            onDismiss = { showLogoutDialog = false }
         )
     }
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { 
+                title = {
                     Text(
                         text = "Olá, $displayName",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
-                    ) 
+                    )
                 },
                 actions = {
                     IconButton(onClick = { showLogoutDialog = true }) {
-                        Icon(Icons.Default.Logout, contentDescription = "Sair")
+                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Sair")
                     }
                 }
             )
@@ -151,7 +148,7 @@ fun MainApp(onLogout: () -> Unit) {
                     }
                 )
                 NavigationBarItem(
-                    icon = { Icon(Icons.Default.List, contentDescription = "Serviços") },
+                    icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Serviços") },
                     label = { Text("Serviços") },
                     selected = currentRoute == "services",
                     onClick = {
@@ -186,18 +183,20 @@ fun MainApp(onLogout: () -> Unit) {
                         }
                     }
                 )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.Settings, contentDescription = "Config") },
-                    label = { Text("Config") },
-                    selected = currentRoute == "config",
-                    onClick = {
-                        navController.navigate("config") {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
+                if (isAdmin) {
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Default.Settings, contentDescription = "Config") },
+                        label = { Text("Config") },
+                        selected = currentRoute == "config",
+                        onClick = {
+                            navController.navigate("config") {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
                         }
-                    }
-                )
+                    )
+                }
             }
         }
     ) { innerPadding ->
@@ -210,8 +209,38 @@ fun MainApp(onLogout: () -> Unit) {
             composable("services") { ServicesListScreen(viewModel) }
             composable("saved") { SavedReportsScreen() }
             composable("stock") { StockScreen(viewModel) }
-            // A função de logout não é mais necessária aqui
-            composable("config") { MachineConfigurationScreen(viewModel) }
+            composable("config") {
+                if (isAdmin) {
+                    MachineConfigurationScreen(viewModel)
+                } else {
+                    // Se um usuário não-admin tentar acessar, ele é jogado para a tela anterior.
+                    LaunchedEffect(Unit) {
+                        navController.popBackStack()
+                    }
+                }
+            }
         }
     }
+}
+
+@Composable
+private fun LogoutConfirmationDialog(
+    onConfirmLogout: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Confirmar Saída") },
+        text = { Text("Deseja realmente sair do seu usuário?") },
+        confirmButton = {
+            TextButton(onClick = onConfirmLogout) {
+                Text("Sair")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
 }
