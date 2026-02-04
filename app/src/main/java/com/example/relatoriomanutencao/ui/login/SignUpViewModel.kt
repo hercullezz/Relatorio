@@ -28,6 +28,7 @@ class SignUpViewModel : ViewModel() {
     // 3. Propriedades que a UI vai preencher (Two-way data binding)
     var name by mutableStateOf("")
     var username by mutableStateOf("")
+    var email by mutableStateOf("")
     var password by mutableStateOf("")
     var confirmPassword by mutableStateOf("") // Novo campo para confirmação
     var selectedShift by mutableStateOf<Pair<String, Int>?>(null)
@@ -35,7 +36,7 @@ class SignUpViewModel : ViewModel() {
     // 4. Função principal que a UI chamará para iniciar o cadastro
     fun signUp() {
         // Validação básica para garantir que todos os campos foram preenchidos
-        if (name.isBlank() || username.isBlank() || password.isBlank() || confirmPassword.isBlank() || selectedShift == null) {
+        if (name.isBlank() || username.isBlank() || email.isBlank() || password.isBlank() || confirmPassword.isBlank() || selectedShift == null) {
             _uiState.value = SignUpUiState.Error("Por favor, preencha todos os campos.")
             return
         }
@@ -52,6 +53,7 @@ class SignUpViewModel : ViewModel() {
             try {
                 val user = ParseUser()
                 user.username = username
+                user.email = email
                 user.setPassword(password)
                 user.put("name", name)
                 user.put("ShiftId", selectedShift!!.second) // Usa o ID numérico do turno

@@ -120,6 +120,15 @@ private fun SignUpForm(
     )
     Spacer(modifier = Modifier.height(16.dp))
 
+    // Email field (required for password reset)
+    OutlinedTextField(
+        value = viewModel.email,
+        onValueChange = { viewModel.email = it },
+        label = { Text("E-mail") },
+        modifier = Modifier.fillMaxWidth()
+    )
+    Spacer(modifier = Modifier.height(16.dp))
+
     OutlinedTextField(
         value = viewModel.password,
         onValueChange = { viewModel.password = it },
@@ -177,6 +186,7 @@ private fun SignUpForm(
         // Lógica do botão atualizada para incluir o novo campo
         enabled = viewModel.name.isNotBlank() &&
                 viewModel.username.isNotBlank() &&
+                viewModel.email.isNotBlank() &&
                 viewModel.password.isNotBlank() &&
                 viewModel.confirmPassword.isNotBlank() &&
                 viewModel.selectedShift != null

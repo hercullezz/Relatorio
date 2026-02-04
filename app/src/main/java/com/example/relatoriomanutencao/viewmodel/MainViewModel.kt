@@ -83,6 +83,62 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
         }
     }
+
+    // --- Admin Users (for admin screen) ---
+    private val _adminUsers = MutableStateFlow<List<com.parse.ParseUser>>(emptyList())
+    val adminUsers: StateFlow<List<com.parse.ParseUser>> = _adminUsers.asStateFlow()
+
+    fun fetchUsersForAdmin() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val query = ParseQuery.getQuery(com.parse.ParseUser::class.java)
+                query.orderByAscending("username")
+                val results = query.find()
+                _adminUsers.value = results
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Erro ao buscar usuários (admin): ${e.message}")
+            }
+        }
+    }
+
+    fun approveUser(objectId: String, approve: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val query = ParseQuery.getQuery(com.parse.ParseUser::class.java)
+                val user = query.get(objectId)
+                user.put("isApproved", approve)
+                user.save()
+                // refresh list
+                fetchUsersForAdmin()
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Erro aprovar usuário: ${e.message}")
+            }
+        }
+    }
+
+    fun toggleAdmin(objectId: String, makeAdmin: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val query = ParseQuery.getQuery(com.parse.ParseUser::class.java)
+                val user = query.get(objectId)
+                user.put("isAdmin", makeAdmin)
+                user.save()
+                fetchUsersForAdmin()
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Erro toggle admin: ${e.message}")
+            }
+        }
+    }
+
+    fun sendPasswordReset(email: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                com.parse.ParseUser.requestPasswordReset(email)
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Erro ao solicitar reset de senha: ${e.message}")
+            }
+        }
+    }
     
     // --- MANUTENÇÃO (BACK4APP + CLOUDINARY) ---
     

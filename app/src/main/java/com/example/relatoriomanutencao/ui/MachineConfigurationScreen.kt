@@ -31,6 +31,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.relatoriomanutencao.data.Machine
 import com.example.relatoriomanutencao.data.ProductionLine
 import com.example.relatoriomanutencao.viewmodel.MainViewModel
+import com.example.relatoriomanutencao.ui.admin.AdminUserManagementDialog
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -51,6 +52,8 @@ fun MachineConfigurationScreen(
     
     // Estado para Limpeza de Nuvem
     var showCleanCloudDialog by remember { mutableStateOf(false) }
+    // Estado para o diálogo de administração
+    var showAdminDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -62,7 +65,7 @@ fun MachineConfigurationScreen(
                      ) 
                  },
                  actions = {
-                     IconButton(onClick = { viewModel.syncMachineConfiguration() }) {
+                    IconButton(onClick = { viewModel.syncMachineConfiguration() }) {
                          if (isLoading) {
                              CircularProgressIndicator(
                                  modifier = Modifier.size(24.dp),
@@ -76,7 +79,12 @@ fun MachineConfigurationScreen(
                                  tint = MaterialTheme.colorScheme.primary
                              )
                          }
-                     }
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    // Botão Admin - abre diálogo de gerenciamento
+                    IconButton(onClick = { showAdminDialog = true }) {
+                        Icon(Icons.Filled.Build, contentDescription = "Gerenciar Usuários")
+                    }
                  },
                  colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                      containerColor = MaterialTheme.colorScheme.background,
@@ -272,6 +280,10 @@ fun MachineConfigurationScreen(
                 )
             }
         }
+    }
+
+    if (showAdminDialog) {
+        AdminUserManagementDialog(viewModel = viewModel, onDismiss = { showAdminDialog = false })
     }
 
     if (showAddLineDialog) {
