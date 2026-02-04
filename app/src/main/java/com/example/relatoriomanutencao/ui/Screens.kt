@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Environment
 import android.widget.Toast
+import com.example.relatoriomanutencao.utils.ShiftManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -700,83 +701,142 @@ fun SavedReportsScreen() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ServicesListScreen(viewModel: MainViewModel) {
-     val allItems by viewModel.maintenanceItems.collectAsState()
-     val context = LocalContext.current
-     
-     // Estado de Filtro
-     var showOnlyCurrentShift by remember { mutableStateOf(true) }
-     var selectedDateMillis by remember { mutableStateOf(System.currentTimeMillis()) }
-     var showDatePicker by remember { mutableStateOf(false) }
-     
-     // Estado para controle de edição e exclusão
-     var editingItem by remember { mutableStateOf<MaintenanceItem?>(null) }
-     var itemToDelete by remember { mutableStateOf<MaintenanceItem?>(null) } // Novo estado para exclusão
-     
-     // Estado de carregamento do PDF
-     var isGeneratingPdf by remember { mutableStateOf(false) }
-     val coroutineScope = rememberCoroutineScope()
+    val allItems by viewModel.maintenanceItems.collectAsState()
+    val context = LocalContext.current
 
-     // Filter Logic - Turno Adaptável ou Data Específica
-     val displayedItems = remember(allItems, showOnlyCurrentShift, selectedDateMillis) {
-         if (showOnlyCurrentShift) {
-             val now = Calendar.getInstance()
-             val currentHour = now.get(Calendar.HOUR_OF_DAY)
-             
-             // Lógica para o 3º Turno:
-             // Se for de manhã (antes das 12h), pertence ao turno que começou ontem às 18h
-             // Se for a tarde/noite, pertence ao turno que começou hoje às 18h
-             val startFilterTime = Calendar.getInstance()
-             if (currentHour < 12) {
-                 startFilterTime.add(Calendar.DAY_OF_YEAR, -1)
-                 startFilterTime.set(Calendar.HOUR_OF_DAY, 18)
-                 startFilterTime.set(Calendar.MINUTE, 0)
-             } else {
-                 startFilterTime.set(Calendar.HOUR_OF_DAY, 18)
-                 startFilterTime.set(Calendar.MINUTE, 0)
-             }
-             
-             val filterTimestamp = startFilterTime.timeInMillis
-             allItems.filter { it.date >= filterTimestamp }
-         } else {
-             // Lógica para Data Específica (Dia Calendário: 00:00 às 23:59)
-             val targetCal = Calendar.getInstance().apply { timeInMillis = selectedDateMillis }
-             val targetDay = targetCal.get(Calendar.DAY_OF_YEAR)
-             val targetYear = targetCal.get(Calendar.YEAR)
-             
-             allItems.filter { 
-                 val itemCal = Calendar.getInstance().apply { timeInMillis = it.date }
-                 itemCal.get(Calendar.DAY_OF_YEAR) == targetDay && 
-                 itemCal.get(Calendar.YEAR) == targetYear
-             }
-         }
-     }
-     
-     // Date Picker Logic
-     if (showDatePicker) {
-         val datePickerState = rememberDatePickerState(
-             initialSelectedDateMillis = selectedDateMillis
-         )
-         DatePickerDialog(
-             onDismissRequest = { showDatePicker = false },
-             confirmButton = {
-                 TextButton(onClick = {
-                     datePickerState.selectedDateMillis?.let { selectedDateMillis = it }
-                     showDatePicker = false
-                 }) {
-                     Text("OK")
-                 }
-             },
-             dismissButton = {
-                 TextButton(onClick = { showDatePicker = false }) {
-                     Text("Cancelar")
-                 }
-             }
-         ) {
-             DatePicker(state = datePickerState)
-         }
-     }
+    // Busca
+    var searchQuery by remember { mutableStateOf("") }
 
-     Scaffold(
+    // Estado de Filtro: modos -> "CURRENT", "DAY", "WEEK", "RANGE"
+    var filterMode by remember { mutableStateOf("CURRENT") }
+    var selectedDateMillis by remember { mutableStateOf(System.currentTimeMillis()) }
+    var rangeStartMillis by remember { mutableStateOf(System.currentTimeMillis()) }
+    var rangeEndMillis by remember { mutableStateOf(System.currentTimeMillis()) }
+    var showDayPicker by remember { mutableStateOf(false) }
+    var showStartPicker by remember { mutableStateOf(false) }
+    var showEndPicker by remember { mutableStateOf(false) }
+
+    // Seleção de Turnos (multi-select)
+    var shift1 by remember { mutableStateOf(true) }
+    var shift2 by remember { mutableStateOf(true) }
+    var shift3 by remember { mutableStateOf(true) }
+
+    // Estado para controle de edição e exclusão
+    var editingItem by remember { mutableStateOf<MaintenanceItem?>(null) }
+    var itemToDelete by remember { mutableStateOf<MaintenanceItem?>(null) }
+
+    // Estado de carregamento do PDF
+    var isGeneratingPdf by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+
+    // Filter Logic: date range + shift multi-select + search
+    val displayedItems = remember(
+        allItems, filterMode, selectedDateMillis, rangeStartMillis, rangeEndMillis,
+        shift1, shift2, shift3, searchQuery
+    ) {
+        val lowerQuery = searchQuery.trim().lowercase(Locale.getDefault())
+
+        if (filterMode == "CURRENT") {
+            val currentShift = ShiftManager.getCurrentShiftInfo()
+            val currentId = currentShift.shiftId
+            allItems.filter { item ->
+                val itemShift = item.shiftId ?: ShiftManager.getShiftInfo(item.date).shiftId
+                val matchesShift = (itemShift == currentId)
+                val matchesSearch = if (lowerQuery.isEmpty()) true else {
+                    (item.machine.lowercase().contains(lowerQuery) || item.description.lowercase().contains(lowerQuery) || item.serviceType.lowercase().contains(lowerQuery))
+                }
+                matchesShift && matchesSearch
+            }
+        } else {
+            // determine date window
+            val calStart = Calendar.getInstance().apply { timeInMillis = selectedDateMillis }
+            val startMillis: Long
+            val endMillis: Long
+
+            when (filterMode) {
+                "DAY" -> {
+                    calStart.set(Calendar.HOUR_OF_DAY, 0); calStart.set(Calendar.MINUTE, 0); calStart.set(Calendar.SECOND, 0); calStart.set(Calendar.MILLISECOND, 0)
+                    startMillis = calStart.timeInMillis
+                    calStart.add(Calendar.DAY_OF_YEAR, 1)
+                    endMillis = calStart.timeInMillis - 1
+                }
+                "WEEK" -> {
+                    val firstDay = calStart.getFirstDayOfWeek()
+                    while (calStart.get(Calendar.DAY_OF_WEEK) != firstDay) calStart.add(Calendar.DAY_OF_YEAR, -1)
+                    calStart.set(Calendar.HOUR_OF_DAY, 0); calStart.set(Calendar.MINUTE, 0); calStart.set(Calendar.SECOND, 0); calStart.set(Calendar.MILLISECOND, 0)
+                    startMillis = calStart.timeInMillis
+                    calStart.add(Calendar.DAY_OF_YEAR, 7)
+                    endMillis = calStart.timeInMillis - 1
+                }
+                else -> { // RANGE
+                    val sCal = Calendar.getInstance().apply { timeInMillis = rangeStartMillis }
+                    sCal.set(Calendar.HOUR_OF_DAY, 0); sCal.set(Calendar.MINUTE, 0); sCal.set(Calendar.SECOND, 0); sCal.set(Calendar.MILLISECOND, 0)
+                    val eCal = Calendar.getInstance().apply { timeInMillis = rangeEndMillis }
+                    eCal.set(Calendar.HOUR_OF_DAY, 23); eCal.set(Calendar.MINUTE, 59); eCal.set(Calendar.SECOND, 59); eCal.set(Calendar.MILLISECOND, 999)
+                    startMillis = sCal.timeInMillis
+                    endMillis = eCal.timeInMillis
+                }
+            }
+
+            val selectedShifts = mutableSetOf<Int>()
+            if (shift1) selectedShifts.add(1)
+            if (shift2) selectedShifts.add(2)
+            if (shift3) selectedShifts.add(3)
+
+            allItems.filter { item ->
+                val inRange = item.date in startMillis..endMillis
+                val itemShift = item.shiftId ?: ShiftManager.getShiftInfo(item.date).shiftId
+                val matchesShift = if (selectedShifts.isEmpty()) true else selectedShifts.contains(itemShift)
+                val matchesSearch = if (lowerQuery.isEmpty()) true else {
+                    (item.machine.lowercase().contains(lowerQuery) || item.description.lowercase().contains(lowerQuery) || item.serviceType.lowercase().contains(lowerQuery))
+                }
+                inRange && matchesShift && matchesSearch
+            }
+        }
+    }
+
+    // Date Picker Logic
+    if (showDayPicker) {
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = selectedDateMillis)
+        DatePickerDialog(
+            onDismissRequest = { showDayPicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { selectedDateMillis = it }
+                    showDayPicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { showDayPicker = false }) { Text("Cancelar") } }
+        ) { DatePicker(state = datePickerState) }
+    }
+    if (showStartPicker) {
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = rangeStartMillis)
+        DatePickerDialog(
+            onDismissRequest = { showStartPicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { rangeStartMillis = it }
+                    showStartPicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { showStartPicker = false }) { Text("Cancelar") } }
+        ) { DatePicker(state = datePickerState) }
+    }
+    if (showEndPicker) {
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = rangeEndMillis)
+        DatePickerDialog(
+            onDismissRequest = { showEndPicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { rangeEndMillis = it }
+                    showEndPicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { showEndPicker = false }) { Text("Cancelar") } }
+        ) { DatePicker(state = datePickerState) }
+    }
+
+    Scaffold(
          floatingActionButton = {
              ExtendedFloatingActionButton(
                  onClick = {
@@ -810,57 +870,90 @@ fun ServicesListScreen(viewModel: MainViewModel) {
          Box(modifier = Modifier.fillMaxSize()) {
              Column(modifier = Modifier.fillMaxSize().padding(paddingValues).padding(16.dp)) {
                  
-                 // --- HEADER E FILTROS ---
-                 Row(
-                     modifier = Modifier.fillMaxWidth(),
-                     verticalAlignment = Alignment.CenterVertically,
-                     horizontalArrangement = Arrangement.SpaceBetween
-                 ) {
-                     Text(
-                         text = "Histórico",
-                         style = MaterialTheme.typography.headlineSmall,
-                         fontWeight = FontWeight.Bold
-                     )
-                     
-                     // Toggle: Turno Atual vs Data
-                     FilterChip(
-                         selected = showOnlyCurrentShift,
-                         onClick = { showOnlyCurrentShift = !showOnlyCurrentShift },
-                         label = { Text("Turno Atual") },
-                         leadingIcon = {
-                             if (showOnlyCurrentShift) Icon(Icons.Default.Check, null)
-                         }
-                     )
-                 }
+                // --- HEADER E FILTROS ---
+                Text(
+                    text = "Histórico",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
 
-                 Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                 // Se NÃO for Turno Atual, mostra seletor de Data
-                 if (!showOnlyCurrentShift) {
-                     val dateFormat = SimpleDateFormat("dd 'de' MMMM, yyyy", Locale.getDefault())
-                     val dateString = dateFormat.format(Date(selectedDateMillis))
-                     
-                     OutlinedButton(
-                         onClick = { showDatePicker = true },
-                         modifier = Modifier.fillMaxWidth(),
-                         shape = RoundedCornerShape(8.dp)
-                     ) {
-                         Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(18.dp))
-                         Spacer(modifier = Modifier.width(8.dp))
-                         Text(text = dateString)
-                         Spacer(modifier = Modifier.weight(1f))
-                         Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-                     }
-                 } else {
-                     // Texto explicativo do Turno Atual
-                     Text(
-                         text = "Exibindo serviços registrados nas últimas horas (Turno Atual).",
-                         style = MaterialTheme.typography.bodySmall,
-                         color = Color.Gray
-                     )
-                 }
-                 
-                 Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    label = { Text("Buscar (máquina, descrição, tipo)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = (filterMode == "CURRENT"), onClick = { filterMode = "CURRENT" }, label = { Text("Turno Atual") })
+                    FilterChip(selected = (filterMode == "DAY"), onClick = { filterMode = "DAY" }, label = { Text("Dia") })
+                    FilterChip(selected = (filterMode == "WEEK"), onClick = { filterMode = "WEEK" }, label = { Text("Semana") })
+                    FilterChip(selected = (filterMode == "RANGE"), onClick = { filterMode = "RANGE" }, label = { Text("Período") })
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Shifts multi-select
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = shift1, onCheckedChange = { shift1 = it })
+                        Text("1º turno")
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = shift2, onCheckedChange = { shift2 = it })
+                        Text("2º turno")
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = shift3, onCheckedChange = { shift3 = it })
+                        Text("3º turno")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                when (filterMode) {
+                    "DAY" -> {
+                        val dateFormat = SimpleDateFormat("dd 'de' MMMM, yyyy", Locale.getDefault())
+                        val dateString = dateFormat.format(Date(selectedDateMillis))
+                        OutlinedButton(onClick = { showDayPicker = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp)) {
+                            Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = dateString)
+                            Spacer(modifier = Modifier.weight(1f))
+                            Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                        }
+                    }
+                    "WEEK" -> {
+                        val dateFormat = SimpleDateFormat("dd MMM", Locale.getDefault())
+                        val cal = Calendar.getInstance().apply { timeInMillis = selectedDateMillis }
+                        val firstDay = cal.getFirstDayOfWeek()
+                        while (cal.get(Calendar.DAY_OF_WEEK) != firstDay) cal.add(Calendar.DAY_OF_YEAR, -1)
+                        val start = dateFormat.format(Date(cal.timeInMillis))
+                        cal.add(Calendar.DAY_OF_YEAR, 6)
+                        val end = dateFormat.format(Date(cal.timeInMillis))
+                        Text("Semana: $start - $end", style = MaterialTheme.typography.bodySmall)
+                    }
+                    "RANGE" -> {
+                        val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = { showStartPicker = true }, modifier = Modifier.weight(1f)) { Text(dateFormat.format(Date(rangeStartMillis))) }
+                            OutlinedButton(onClick = { showEndPicker = true }, modifier = Modifier.weight(1f)) { Text(dateFormat.format(Date(rangeEndMillis))) }
+                        }
+                    }
+                    else -> {
+                        val current = ShiftManager.getCurrentShiftInfo()
+                        val df = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                        Text("Turno atual: ${current.shiftName} (data de trabalho: ${df.format(current.workDate)})", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                  // --- LISTA DE ITENS ---
                  if (displayedItems.isEmpty()) {
@@ -869,8 +962,7 @@ fun ServicesListScreen(viewModel: MainViewModel) {
                              Icon(Icons.Default.EventBusy, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(48.dp))
                              Spacer(modifier = Modifier.height(8.dp))
                              Text(
-                                 if(showOnlyCurrentShift) "Nenhum serviço neste turno." 
-                                 else "Nenhum serviço nesta data.", 
+                                 if(filterMode == "CURRENT") "Nenhum serviço neste turno." else "Nenhum serviço encontrado.",
                                  color = Color.Gray
                              )
                          }

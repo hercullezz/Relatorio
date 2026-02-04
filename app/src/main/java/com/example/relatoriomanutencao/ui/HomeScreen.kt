@@ -34,6 +34,7 @@ fun HomeScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     var filterByCurrentShift by remember { mutableStateOf(true) }
     val currentShiftInfo = remember { ShiftManager.getCurrentShiftInfo() }
+    var searchQuery by remember { mutableStateOf("") }
 
     fun sameDay(aMillis: Long, bMillis: Long): Boolean {
         val ca = Calendar.getInstance().apply { timeInMillis = aMillis }
@@ -76,20 +77,40 @@ fun HomeScreen(
             }
             
             Column(modifier = Modifier.fillMaxWidth()) {
-                // Filtro por turno atual
+                // Busca por palavras
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    label = { Text("Buscar (máquina, descrição, tipo)") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                )
+
+                // Filtro por turno atual (persistência futura)
                 Row(modifier = Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("Turno atual: ${currentShiftInfo.shiftName}", modifier = Modifier.weight(1f))
                     Switch(checked = filterByCurrentShift, onCheckedChange = { filterByCurrentShift = it })
                 }
 
-                val displayed = if (filterByCurrentShift) {
+                val baseFiltered = if (filterByCurrentShift) {
                     maintenanceItems.filter { it.shiftId == currentShiftInfo.shiftId && sameDay(it.date, currentShiftInfo.workDate.time) }
                 } else maintenanceItems
+
+                val displayed = if (searchQuery.isBlank()) {
+                    baseFiltered
+                } else {
+                    val q = searchQuery.trim().lowercase()
+                    baseFiltered.filter { m ->
+                        m.machine.lowercase().contains(q) || m.description.lowercase().contains(q) || m.serviceType.lowercase().contains(q)
+                    }
+                }
 
                 LazyColumn(modifier = Modifier.fillMaxWidth()) {
                 items(displayed) { maintenance ->
                     val dateString = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(maintenance.date))
-
+                    val workDateMillis = maintenance.workDateMillisFromServer ?: maintenance.date
+                    val workDateString = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(workDateMillis))
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -111,7 +132,11 @@ fun HomeScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(text = maintenance.machine, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                Text(text = dateString, style = MaterialTheme.typography.bodySmall)
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(text = dateString, style = MaterialTheme.typography.bodySmall)
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(text = "WorkDate: $workDateString" + (maintenance.shiftId?.let { " - T$it" } ?: ""), style = MaterialTheme.typography.bodySmall)
+                                }
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(text = maintenance.serviceType, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
