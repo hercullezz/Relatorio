@@ -31,6 +31,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -44,6 +45,7 @@ import com.example.relatoriomanutencao.ui.SavedReportsScreen
 import com.example.relatoriomanutencao.ui.ServicesListScreen
 import com.example.relatoriomanutencao.ui.StockScreen
 import com.example.relatoriomanutencao.ui.login.LoginScreen
+import com.example.relatoriomanutencao.ui.login.SignUpScreen
 import com.example.relatoriomanutencao.ui.theme.RelatorioManutencaoTheme
 import com.example.relatoriomanutencao.viewmodel.MainViewModel
 import com.parse.ParseUser
@@ -64,20 +66,44 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+// Data class para representar um item da barra de navegação
+private data class BottomNavItem(
+    val label: String,
+    val icon: ImageVector,
+    val route: String
+)
+
 @Composable
 fun AuthGate() {
-    // A única fonte da verdade sobre o estado de autenticação.
     val currentUserState = remember { mutableStateOf(ParseUser.getCurrentUser()) }
     val user = currentUserState.value
 
     if (user == null) {
-        // Se não há usuário, mostra a tela de login.
-        LoginScreen(
-            onLoginSuccess = {
-                // Atualiza nosso estado quando o login for bem-sucedido.
-                currentUserState.value = ParseUser.getCurrentUser()
+        // Se não há usuário, mostra a navegação de autenticação (Login/Cadastro).
+        val authNavController = rememberNavController()
+        NavHost(navController = authNavController, startDestination = "login") {
+            composable("login") {
+                LoginScreen(
+                    onLoginSuccess = {
+                        // Atualiza nosso estado quando o login for bem-sucedido.
+                        currentUserState.value = ParseUser.getCurrentUser()
+                    },
+                    onNavigateToSignUp = { // Ação para navegar para o cadastro
+                        authNavController.navigate("signup")
+                    }
+                )
             }
-        )
+            composable("signup") {
+                SignUpScreen(
+                    onSignUpSuccess = { // Após cadastro, volta para o login
+                        authNavController.navigate("login") { popUpTo("login") { inclusive = true } }
+                    },
+                    onNavigateToLogin = { // Ação para voltar para o login
+                        authNavController.popBackStack()
+                    }
+                )
+            }
+        }
     } else {
         // Se há um usuário, mostra a tela principal.
         MainApp(
@@ -135,66 +161,38 @@ fun MainApp(user: ParseUser, onLogout: () -> Unit) { // Recebe o usuário como p
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
 
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.Add, contentDescription = "Novo") },
-                    label = { Text("Novo") },
-                    selected = currentRoute == "new",
-                    onClick = {
-                        navController.navigate("new") {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
+                // 1. Define a lista de itens de navegação como "fonte da verdade".
+                // Usamos `remember(isAdmin)` para recriar a lista apenas se o status de admin mudar.
+                val bottomNavItems = remember(isAdmin) {
+                    val baseItems = listOf(
+                        BottomNavItem(label = "Novo", icon = Icons.Default.Add, route = "new"),
+                        BottomNavItem(label = "Serviços", icon = Icons.AutoMirrored.Filled.List, route = "services"),
+                        BottomNavItem(label = "Salvos", icon = Icons.Default.Save, route = "saved"),
+                        BottomNavItem(label = "Estoque", icon = Icons.Default.Inventory, route = "stock")
+                    )
+                    if (isAdmin) {
+                        baseItems + BottomNavItem(label = "Config", icon = Icons.Default.Settings, route = "config")
+                    } else {
+                        baseItems
                     }
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Serviços") },
-                    label = { Text("Serviços") },
-                    selected = currentRoute == "services",
-                    onClick = {
-                        navController.navigate("services") {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.Save, contentDescription = "Salvos") },
-                    label = { Text("Salvos") },
-                    selected = currentRoute == "saved",
-                    onClick = {
-                        navController.navigate("saved") {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.Inventory, contentDescription = "Estoque") },
-                    label = { Text("Estoque") },
-                    selected = currentRoute == "stock",
-                    onClick = {
-                        navController.navigate("stock") {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
-                )
-                if (isAdmin) {
+                }
+
+                // 2. Itera sobre a lista para criar cada item dinamicamente.
+                bottomNavItems.forEach { item ->
                     NavigationBarItem(
-                        icon = { Icon(Icons.Default.Settings, contentDescription = "Config") },
-                        label = { Text("Config") },
-                        selected = currentRoute == "config",
+                        selected = currentRoute == item.route,
                         onClick = {
-                            navController.navigate("config") {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            navController.navigate(item.route) {
+                                // Lógica de navegação centralizada para evitar repetição.
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
                                 launchSingleTop = true
                                 restoreState = true
                             }
-                        }
+                        },
+                        icon = { Icon(imageVector = item.icon, contentDescription = item.label) },
+                        label = { Text(text = item.label) }
                     )
                 }
             }

@@ -19,6 +19,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -36,12 +37,20 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
+    onNavigateToSignUp: () -> Unit, // Parâmetro adicionado
     viewModel: LoginViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var expanded by remember { mutableStateOf(false) }
 
+    // Este LaunchedEffect chama a atualização da lista sempre que a tela é exibida.
+    // A chave `true` garante que ele rode apenas uma vez quando o Composable entra na tela.
+    LaunchedEffect(key1 = true) {
+        viewModel.refreshUsers()
+    }
+
+    // Este LaunchedEffect reage a mudanças de estado (sucesso/erro do login)
     LaunchedEffect(uiState) {
         val state = uiState
         if (state is LoginUiState.Success) {
@@ -62,38 +71,36 @@ fun LoginScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Box {
-                ExposedDropdownMenuBox(
-                    expanded = expanded,
-                    onExpandedChange = { expanded = !expanded },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    OutlinedTextField(
-                        value = viewModel.selectedUser?.username ?: "Selecione um usuário",
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Usuário") },
-                        trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-                        },
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
-                    )
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = !expanded },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                OutlinedTextField(
+                    modifier = Modifier.menuAnchor(),
+                    value = viewModel.selectedUser?.username ?: "Selecione um usuário",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Usuário") },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                    },
+                )
 
-                    ExposedDropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false }
-                    ) {
-                        viewModel.users.forEach { user ->
-                            // Usamos "name" para exibição, mas o ViewModel ainda usa "username" para o login
-                            val displayName = user.getString("name") ?: user.username
-                            DropdownMenuItem(
-                                text = { Text(displayName) },
-                                onClick = {
-                                    viewModel.selectedUser = user
-                                    expanded = false
-                                }
-                            )
-                        }
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    viewModel.users.forEach { user ->
+                        // Usamos "name" para exibição, mas o ViewModel ainda usa "username" para o login
+                        val displayName = user.getString("name") ?: user.username
+                        DropdownMenuItem(
+                            text = { Text(displayName) },
+                            onClick = {
+                                viewModel.selectedUser = user
+                                expanded = false
+                            }
+                        )
                     }
                 }
             }
@@ -117,6 +124,13 @@ fun LoginScreen(
                 Button(onClick = { viewModel.login() }, modifier = Modifier.fillMaxWidth()) {
                     Text("Entrar")
                 }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Botão para navegar para a tela de cadastro
+            TextButton(onClick = onNavigateToSignUp) {
+                Text("Não tem uma conta? Cadastre-se")
             }
         }
     }

@@ -31,14 +31,23 @@ class LoginViewModel : ViewModel() {
     val uiState = _uiState.asStateFlow()
 
     init {
-        fetchUsers()
+        // A lista ainda é carregada na primeira vez que o ViewModel é criado.
+        refreshUsers()
     }
 
-    private fun fetchUsers() {
+    // A função agora é pública para poder ser chamada pela UI.
+    fun refreshUsers() {
         viewModelScope.launch {
             try {
                 val userList = withContext(Dispatchers.IO) {
                     val query = ParseQuery.getQuery(ParseUser::class.java)
+
+                    // ** A CORREÇÃO ESSENCIAL **
+                    // Força a query a buscar os dados da rede primeiro.
+                    query.cachePolicy = ParseQuery.CachePolicy.NETWORK_ELSE_CACHE
+
+                    // Filtra para mostrar apenas usuários aprovados na lista
+                    query.whereEqualTo("isApproved", true)
                     query.orderByAscending("username")
                     query.find()
                 }
@@ -58,12 +67,27 @@ class LoginViewModel : ViewModel() {
         viewModelScope.launch {
             _uiState.value = LoginUiState.Loading
             try {
-                withContext(Dispatchers.IO) {
-                    // O login no Parse é feito com o username, não com o nome.
+                // 1. Tenta fazer a autenticação com usuário e senha
+                val loggedInUser = withContext(Dispatchers.IO) {
                     ParseUser.logIn(userToLogin.username, password)
                 }
-                _uiState.value = LoginUiState.Success
+
+                // 2. Verifica se a conta está aprovada (esta verificação continua importante)
+                val isApproved = loggedInUser.getBoolean("isApproved")
+
+                if (isApproved) {
+                    // 3. Se aprovado, o login é um sucesso
+                    _uiState.value = LoginUiState.Success
+                } else {
+                    // 4. Se não aprovado, desloga imediatamente e mostra o erro
+                    withContext(Dispatchers.IO) {
+                        ParseUser.logOut()
+                    }
+                    _uiState.value = LoginUiState.Error("Sua conta aguarda aprovação de um administrador.")
+                }
+
             } catch (e: ParseException) {
+                // Erros de autenticação (senha errada, etc.) ou de rede são capturados aqui
                 _uiState.value = LoginUiState.Error(e.message ?: "Ocorreu um erro desconhecido.")
             }
         }
