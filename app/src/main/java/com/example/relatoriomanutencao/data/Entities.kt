@@ -3,6 +3,7 @@ package com.example.relatoriomanutencao.data
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
+import androidx.room.Ignore
 
 @Entity(tableName = "maintenance_items")
 data class MaintenanceItem(
@@ -13,6 +14,14 @@ data class MaintenanceItem(
     val date: Long = 0,
     val photoUris: String = "" 
 )
+
+{
+    @Ignore
+    var shiftId: Int? = null
+
+    @Ignore
+    var workDateMillisFromServer: Long? = null
+}
 
 @Entity(tableName = "stock_items")
 data class StockItem(

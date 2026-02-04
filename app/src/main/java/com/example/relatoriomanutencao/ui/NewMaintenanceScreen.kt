@@ -38,6 +38,9 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import android.app.DatePickerDialog
+import com.example.relatoriomanutencao.utils.ShiftManager
+import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,6 +71,12 @@ fun NewMaintenanceScreen(viewModel: MainViewModel) {
     }
 
     val context = LocalContext.current
+    val currentShift = remember { ShiftManager.getCurrentShiftInfo() }
+    var overrideShiftEnabled by remember { mutableStateOf(false) }
+    var overrideSelectedShiftId by remember { mutableStateOf(currentShift.shiftId) }
+    var overrideDateMillis by remember { mutableStateOf(currentShift.workDate.time) }
+
+    val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
     
     // Câmera e Galeria
     val cameraUri = remember { mutableStateOf<Uri?>(null) }
@@ -360,6 +369,62 @@ fun NewMaintenanceScreen(viewModel: MainViewModel) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // --- Informações do turno atual e opção de override ---
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        Text("Turno atual: ${currentShift.shiftName}", modifier = Modifier.weight(1f))
+                        Text(text = dateFormat.format(Date(currentShift.workDate.time)), style = MaterialTheme.typography.bodySmall)
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Start) {
+                        Checkbox(checked = overrideShiftEnabled, onCheckedChange = { overrideShiftEnabled = it })
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Alterar turno/data")
+                    }
+
+                    if (overrideShiftEnabled) {
+                        // Seleção simples de turno
+                        val shiftOptions = listOf(1 to "1º Turno (05:00-13:40)", 2 to "2º Turno (13:20-22:00)", 3 to "3º Turno (21:30-05:20)")
+                        var expanded by remember { mutableStateOf(false) }
+                        ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
+                            OutlinedTextField(
+                                value = shiftOptions.first { it.first == overrideSelectedShiftId }.second,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Turno") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                                modifier = Modifier.menuAnchor().fillMaxWidth()
+                            )
+                            ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                                shiftOptions.forEach { (id, label) ->
+                                    DropdownMenuItem(text = { Text(label) }, onClick = { overrideSelectedShiftId = id; expanded = false })
+                                }
+                            }
+                        }
+
+                        // Seleção de data via DatePicker
+                        val cal = Calendar.getInstance().apply { timeInMillis = overrideDateMillis }
+                        val datePicker = DatePickerDialog(
+                            context,
+                            { _, y, m, d ->
+                                val c = Calendar.getInstance()
+                                c.set(y, m, d, 0, 0, 0)
+                                c.set(Calendar.MILLISECOND, 0)
+                                overrideDateMillis = c.timeInMillis
+                            },
+                            cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)
+                        )
+
+                        OutlinedTextField(
+                            value = dateFormat.format(Date(overrideDateMillis)),
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Data do turno") },
+                            modifier = Modifier.fillMaxWidth().clickable { datePicker.show() }
+                        )
+                    }
+                }
+
                 // --- Botão Salvar ---
                 val isFormValid = if (isGraphMode) {
                     selectedLine != null && selectedImageUris.isNotEmpty()
@@ -389,7 +454,9 @@ fun NewMaintenanceScreen(viewModel: MainViewModel) {
                                 machine = finalMachineName,
                                 serviceType = if (isGraphMode) "Gráfico de Produção" else serviceType,
                                 description = finalDescription,
-                                photoUris = urisString
+                                photoUris = urisString,
+                                overrideShiftId = if (overrideShiftEnabled) overrideSelectedShiftId else null,
+                                overrideWorkDateMillis = if (overrideShiftEnabled) overrideDateMillis else null
                             )
                             
                             description = ""

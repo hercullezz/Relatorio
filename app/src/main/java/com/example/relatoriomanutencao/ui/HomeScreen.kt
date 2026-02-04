@@ -19,6 +19,8 @@ import com.example.relatoriomanutencao.viewmodel.MainViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.example.relatoriomanutencao.utils.ShiftManager
+import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -30,6 +32,14 @@ fun HomeScreen(
 ) {
     val maintenanceItems by viewModel.maintenanceItems.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    var filterByCurrentShift by remember { mutableStateOf(true) }
+    val currentShiftInfo = remember { ShiftManager.getCurrentShiftInfo() }
+
+    fun sameDay(aMillis: Long, bMillis: Long): Boolean {
+        val ca = Calendar.getInstance().apply { timeInMillis = aMillis }
+        val cb = Calendar.getInstance().apply { timeInMillis = bMillis }
+        return ca.get(Calendar.YEAR) == cb.get(Calendar.YEAR) && ca.get(Calendar.DAY_OF_YEAR) == cb.get(Calendar.DAY_OF_YEAR)
+    }
     
     // Estados para o diálogo de confirmação de exclusão
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -65,9 +75,20 @@ fun HomeScreen(
                 )
             }
             
-            LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                items(maintenanceItems) { item ->
-                    val dateString = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(item.date))
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // Filtro por turno atual
+                Row(modifier = Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Turno atual: ${currentShiftInfo.shiftName}", modifier = Modifier.weight(1f))
+                    Switch(checked = filterByCurrentShift, onCheckedChange = { filterByCurrentShift = it })
+                }
+
+                val displayed = if (filterByCurrentShift) {
+                    maintenanceItems.filter { it.shiftId == currentShiftInfo.shiftId && sameDay(it.date, currentShiftInfo.workDate.time) }
+                } else maintenanceItems
+
+                LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                items(displayed) { maintenance ->
+                    val dateString = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(maintenance.date))
 
                     Card(
                         modifier = Modifier
@@ -78,7 +99,7 @@ fun HomeScreen(
                                     // Detalhes ou Edição futura
                                 },
                                 onLongClick = { 
-                                    itemToDelete = item
+                                    itemToDelete = maintenance
                                     showDeleteDialog = true
                                 }
                             ),
@@ -89,18 +110,18 @@ fun HomeScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(text = item.machine, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Text(text = maintenance.machine, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                                 Text(text = dateString, style = MaterialTheme.typography.bodySmall)
                             }
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text(text = item.serviceType, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                            Text(text = maintenance.serviceType, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text(text = item.description, style = MaterialTheme.typography.bodyMedium, maxLines = 3)
+                            Text(text = maintenance.description, style = MaterialTheme.typography.bodyMedium, maxLines = 3)
                         }
                     }
                 }
                 
-                if (maintenanceItems.isEmpty() && !isLoading) {
+                if (displayed.isEmpty() && !isLoading) {
                     item {
                         Box(
                             modifier = Modifier
@@ -146,4 +167,6 @@ fun HomeScreen(
             )
         }
     }
+}
+
 }

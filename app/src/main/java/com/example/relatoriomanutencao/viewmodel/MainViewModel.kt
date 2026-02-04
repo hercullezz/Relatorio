@@ -15,6 +15,7 @@ import com.example.relatoriomanutencao.data.ProductionLine
 import com.example.relatoriomanutencao.data.StockItem
 import com.example.relatoriomanutencao.utils.CloudinaryHelper
 import com.example.relatoriomanutencao.utils.CsvImporter
+import com.example.relatoriomanutencao.utils.ShiftManager
 import com.parse.ParseCloud
 import com.parse.ParseFile
 import com.parse.ParseObject
@@ -27,6 +28,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.stateIn
+import java.util.Date
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
@@ -104,14 +106,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     // Junta tudo
                     val allPhotoUrls = (legacyUrls + externalPhotos).joinToString(",")
 
-                    MaintenanceItem(
-                        id = 0, 
+                    val workDateObj = obj.getDate("workDate")
+                    val workDateMillis = workDateObj?.time
+
+                    val mi = MaintenanceItem(
+                        id = 0,
                         machine = obj.getString("machine") ?: "",
                         serviceType = obj.getString("type") ?: "",
                         description = obj.getString("description") ?: "",
-                        date = obj.createdAt.time,
-                        photoUris = allPhotoUrls 
+                        date = workDateMillis ?: obj.createdAt.time,
+                        photoUris = allPhotoUrls
                     )
+                    // Preenche dados auxiliares (não persistidos localmente)
+                    mi.shiftId = obj.getNumber("shiftId")?.toInt()
+                    mi.workDateMillisFromServer = workDateMillis
+                    mi
                 }
                 _maintenanceItems.value = items
             } catch (e: Exception) {
@@ -120,7 +129,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun addMaintenanceItem(machine: String, serviceType: String, description: String, photoUris: String) {
+    fun addMaintenanceItem(
+        machine: String,
+        serviceType: String,
+        description: String,
+        photoUris: String,
+        overrideShiftId: Int? = null,
+        overrideWorkDateMillis: Long? = null
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
             try {
@@ -130,6 +146,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 serviceObject.put("machine", machine)
                 serviceObject.put("type", serviceType)
                 serviceObject.put("description", description)
+                // Preencher shiftId e workDate usando ShiftManager (usa fuso do dispositivo),
+                // permitindo override a partir da UI
+                try {
+                    if (overrideShiftId != null && overrideWorkDateMillis != null) {
+                        serviceObject.put("shiftId", overrideShiftId)
+                        serviceObject.put("workDate", Date(overrideWorkDateMillis))
+                    } else {
+                        val shiftInfo = ShiftManager.getCurrentShiftInfo()
+                        serviceObject.put("shiftId", shiftInfo.shiftId)
+                        serviceObject.put("workDate", shiftInfo.workDate)
+                    }
+                } catch (e: Exception) {
+                    Log.e("MainViewModel", "Não foi possível calcular shiftInfo: ${e.message}")
+                }
                 
                 if (uploadedUrls.isNotEmpty()) {
                     serviceObject.put("external_photos", uploadedUrls)

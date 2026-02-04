@@ -25,6 +25,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import com.example.relatoriomanutencao.utils.ShiftManager
 
 object PdfGenerator {
 
@@ -83,16 +84,34 @@ object PdfGenerator {
             }
 
             // --- Lógica de Data e Turno ---
-            val now = Calendar.getInstance()
-            if (now.get(Calendar.HOUR_OF_DAY) < 10) {
-                now.add(Calendar.DAY_OF_YEAR, -1)
-            }
-
             val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
             val fileNameDateFormat = SimpleDateFormat("dd-MM-yyyy", Locale.getDefault())
-            val reportDate = dateFormat.format(now.time)
-            val reportDateFilename = fileNameDateFormat.format(now.time)
-            val shiftName = "3º Turno (21:30 - 05:20)"
+
+            // Inferir turno a partir dos itens; se itens vierem de vários turnos, gera consolidação
+            val shiftInfos = items.map { ShiftManager.getShiftInfo(it.date) }
+            val distinctWorkDates = shiftInfos.map { it.workDate }.distinct()
+            val distinctShiftIds = shiftInfos.map { it.shiftId }.distinct()
+
+            val reportDate: String
+            val reportDateFilename: String
+            val shiftName: String
+            val shiftIdForFilename: String
+
+            if (distinctWorkDates.size == 1 && distinctShiftIds.size == 1) {
+                val si = shiftInfos.first()
+                reportDate = dateFormat.format(si.workDate)
+                reportDateFilename = fileNameDateFormat.format(si.workDate)
+                shiftName = si.shiftName
+                shiftIdForFilename = "T${si.shiftId}"
+            } else {
+                // Múltiplas datas/turnos: consolidado entre min e max
+                val minDate = distinctWorkDates.minOrNull() ?: Date()
+                val maxDate = distinctWorkDates.maxOrNull() ?: Date()
+                reportDate = "${dateFormat.format(minDate)} - ${dateFormat.format(maxDate)}"
+                reportDateFilename = "${fileNameDateFormat.format(minDate)}_to_${fileNameDateFormat.format(maxDate)}"
+                shiftName = "Consolidado"
+                shiftIdForFilename = "Consolidado"
+            }
 
             // --- Helpers de Paginação e Rodapé ---
             fun drawFooter(canvas: android.graphics.Canvas, pageNum: Int) {
@@ -244,7 +263,7 @@ object PdfGenerator {
             document.finishPage(page)
 
             val timeStamp = SimpleDateFormat("HHmm", Locale.getDefault()).format(Date())
-            val fileName = "Relatorio_3Turno_${reportDateFilename}_${timeStamp}.pdf"
+            val fileName = "Relatorio_${shiftIdForFilename}_${reportDateFilename}_${timeStamp}.pdf"
             val file = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), fileName)
 
             try {
