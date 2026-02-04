@@ -77,7 +77,7 @@ fun LoginScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 OutlinedTextField(
-                    modifier = Modifier.menuAnchor(),
+                    modifier = Modifier.menuAnchor().fillMaxWidth(),
                     value = viewModel.selectedUser?.username ?: "Selecione um usuário",
                     onValueChange = {},
                     readOnly = true,
