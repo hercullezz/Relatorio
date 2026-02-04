@@ -24,6 +24,7 @@ import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
+import java.time.Instant
 import java.util.Locale
 import com.example.relatoriomanutencao.utils.ShiftManager
 
@@ -87,8 +88,22 @@ object PdfGenerator {
             val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
             val fileNameDateFormat = SimpleDateFormat("dd-MM-yyyy", Locale.getDefault())
 
-            // Inferir turno a partir dos itens; se itens vierem de vários turnos, gera consolidação
-            val shiftInfos = items.map { ShiftManager.getShiftInfo(it.date) }
+            // Inferir turno a partir dos itens; prefira valores vindos do servidor quando disponíveis
+            val shiftInfos = items.map { item ->
+                val serverWorkMillis = item.workDateMillisFromServer
+                val serverShiftId = item.shiftId
+
+                if (serverWorkMillis != null && serverShiftId != null) {
+                    // Use the server-provided workDate + shiftId to ensure 3rd-shift midnight logic
+                    ShiftManager.getShiftInfoForShiftId(serverShiftId, Instant.ofEpochMilli(serverWorkMillis))
+                } else if (serverShiftId != null) {
+                    // No server workDate, but shiftId known: compute workDate for that shift at item's timestamp
+                    ShiftManager.getShiftInfoForShiftId(serverShiftId, Instant.ofEpochMilli(item.date))
+                } else {
+                    // Fallback: infer shift from the item's local timestamp
+                    ShiftManager.getShiftInfo(item.date)
+                }
+            }
             val distinctWorkDates = shiftInfos.map { it.workDate }.distinct()
             val distinctShiftIds = shiftInfos.map { it.shiftId }.distinct()
 

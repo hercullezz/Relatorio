@@ -231,40 +231,22 @@ fun NewMaintenanceScreen(viewModel: MainViewModel) {
                         }
                     }
 
-                    // --- Tipo de Serviço ---
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly
-                        ) {
+                    // --- Tipo de Serviço (chips iguais) ---
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        val types = listOf("Corretiva", "Preventiva", "Preditiva", "Informação")
+                        types.forEach { type ->
+                            val isInfo = type == "Informação"
                             FilterChip(
-                                selected = serviceType == "Preventiva",
-                                onClick = { serviceType = "Preventiva" },
-                                label = { Text("Preventiva") }
-                            )
-                            FilterChip(
-                                selected = serviceType == "Corretiva",
-                                onClick = { serviceType = "Corretiva" },
-                                label = { Text("Corretiva") }
-                            )
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly
-                        ) {
-                            FilterChip(
-                                selected = serviceType == "Preditiva",
-                                onClick = { serviceType = "Preditiva" },
-                                label = { Text("Preditiva") }
-                            )
-                            FilterChip(
-                                selected = serviceType == "Informação",
-                                onClick = { serviceType = "Informação" },
-                                label = { Text("Informação") },
-                                colors = FilterChipDefaults.filterChipColors(
+                                selected = serviceType == type,
+                                onClick = { serviceType = type },
+                                label = { Text(type, maxLines = 1) },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(40.dp),
+                                colors = if (isInfo) FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
                                     selectedLabelColor = MaterialTheme.colorScheme.onTertiaryContainer
-                                )
+                                ) else FilterChipDefaults.filterChipColors()
                             )
                         }
                     }

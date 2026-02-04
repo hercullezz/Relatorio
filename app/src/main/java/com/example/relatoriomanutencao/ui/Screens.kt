@@ -46,9 +46,11 @@ import com.example.relatoriomanutencao.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
+import java.time.Instant
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import com.parse.ParseUser
 
 // --- Stock Screen ---
 @OptIn(ExperimentalMaterial3Api::class)
@@ -737,15 +739,24 @@ fun ServicesListScreen(viewModel: MainViewModel) {
         val lowerQuery = searchQuery.trim().lowercase(Locale.getDefault())
 
         if (filterMode == "CURRENT") {
-            val currentShift = ShiftManager.getCurrentShiftInfo()
-            val currentId = currentShift.shiftId
+            // Use logged-in user's configured ShiftId when available, fallback to device current shift
+            val currentUser = ParseUser.getCurrentUser()
+            val deviceCurrent = ShiftManager.getCurrentShiftInfo()
+            val userShiftId = currentUser?.getNumber("ShiftId")?.toInt() ?: deviceCurrent.shiftId
+            val userShiftInfo = ShiftManager.getShiftInfoForShiftId(userShiftId, Instant.now())
+            val userWorkDateMillis = userShiftInfo.workDate.time
+
             allItems.filter { item ->
                 val itemShift = item.shiftId ?: ShiftManager.getShiftInfo(item.date).shiftId
-                val matchesShift = (itemShift == currentId)
+                val itemWorkDate = item.workDateMillisFromServer ?: ShiftManager.getShiftInfo(item.date).workDate.time
+
+                val matchesShift = (itemShift == userShiftId)
+                val matchesWorkDate = (itemWorkDate == userWorkDateMillis)
+
                 val matchesSearch = if (lowerQuery.isEmpty()) true else {
                     (item.machine.lowercase().contains(lowerQuery) || item.description.lowercase().contains(lowerQuery) || item.serviceType.lowercase().contains(lowerQuery))
                 }
-                matchesShift && matchesSearch
+                matchesShift && matchesWorkDate && matchesSearch
             }
         } else {
             // determine date window
@@ -802,7 +813,15 @@ fun ServicesListScreen(viewModel: MainViewModel) {
             onDismissRequest = { showDayPicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { selectedDateMillis = it }
+                    datePickerState.selectedDateMillis?.let { utcMillis ->
+                        val localMidnight = java.time.Instant.ofEpochMilli(utcMillis)
+                            .atZone(java.time.ZoneOffset.UTC)
+                            .toLocalDate()
+                            .atStartOfDay(java.time.ZoneId.systemDefault())
+                            .toInstant()
+                            .toEpochMilli()
+                        selectedDateMillis = localMidnight
+                    }
                     showDayPicker = false
                 }) { Text("OK") }
             },
@@ -815,7 +834,15 @@ fun ServicesListScreen(viewModel: MainViewModel) {
             onDismissRequest = { showStartPicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { rangeStartMillis = it }
+                    datePickerState.selectedDateMillis?.let { utcMillis ->
+                        val localMidnight = java.time.Instant.ofEpochMilli(utcMillis)
+                            .atZone(java.time.ZoneOffset.UTC)
+                            .toLocalDate()
+                            .atStartOfDay(java.time.ZoneId.systemDefault())
+                            .toInstant()
+                            .toEpochMilli()
+                        rangeStartMillis = localMidnight
+                    }
                     showStartPicker = false
                 }) { Text("OK") }
             },
@@ -828,7 +855,15 @@ fun ServicesListScreen(viewModel: MainViewModel) {
             onDismissRequest = { showEndPicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { rangeEndMillis = it }
+                    datePickerState.selectedDateMillis?.let { utcMillis ->
+                        val localMidnight = java.time.Instant.ofEpochMilli(utcMillis)
+                            .atZone(java.time.ZoneOffset.UTC)
+                            .toLocalDate()
+                            .atStartOfDay(java.time.ZoneId.systemDefault())
+                            .toInstant()
+                            .toEpochMilli()
+                        rangeEndMillis = localMidnight
+                    }
                     showEndPicker = false
                 }) { Text("OK") }
             },
