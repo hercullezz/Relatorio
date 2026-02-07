@@ -104,10 +104,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun approveUser(objectId: String, approve: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val query = ParseQuery.getQuery(com.parse.ParseUser::class.java)
-                val user = query.get(objectId)
-                user.put("isApproved", approve)
-                user.save()
+                // Use Cloud Code to perform user updates with master key on server-side
+                val params: MutableMap<String, Any> = mutableMapOf()
+                params["objectId"] = objectId
+                params["isApproved"] = approve
+
+                ParseCloud.callFunction<Any>("adminApproveUser", params)
                 // refresh list
                 fetchUsersForAdmin()
             } catch (e: Exception) {
@@ -119,10 +121,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun toggleAdmin(objectId: String, makeAdmin: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val query = ParseQuery.getQuery(com.parse.ParseUser::class.java)
-                val user = query.get(objectId)
-                user.put("isAdmin", makeAdmin)
-                user.save()
+                // Delegate to Cloud Code to change isAdmin using master key
+                val params: MutableMap<String, Any> = mutableMapOf()
+                params["objectId"] = objectId
+                params["isAdmin"] = makeAdmin
+
+                ParseCloud.callFunction<Any>("adminToggleAdmin", params)
                 fetchUsersForAdmin()
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Erro toggle admin: ${e.message}")
