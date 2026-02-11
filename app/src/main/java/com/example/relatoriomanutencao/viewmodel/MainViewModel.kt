@@ -60,6 +60,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    // --- Edit State ---
+    private val _itemToEdit = MutableStateFlow<MaintenanceItem?>(null)
+    val itemToEdit: StateFlow<MaintenanceItem?> = _itemToEdit.asStateFlow()
+
+    fun setItemToEdit(item: MaintenanceItem?) {
+        _itemToEdit.value = item
+    }
+
     // --- Machine Configuration State ---
     val allProductionLines: StateFlow<List<ProductionLine>> = machineConfigRepository.allProductionLines
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -156,15 +164,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val results = query.find()
                 
                 val items = results.map { obj ->
+                    val allUrls = mutableListOf<String>()
+
                     // 1. Fotos Antigas (Arquivos do Back4App)
-                    val legacyPhotos = obj.getList<ParseFile>("photos")
-                    val legacyUrls = legacyPhotos?.mapNotNull { it.url } ?: emptyList()
+                    obj.getList<ParseFile>("photos")?.mapNotNull { it.url }?.let {
+                        allUrls.addAll(it)
+                    }
                     
                     // 2. Novas Fotos (Links do Cloudinary)
-                    val externalPhotos = obj.getList<String>("external_photos") ?: emptyList()
+                    obj.getList<String>("external_photos")?.let {
+                        allUrls.addAll(it)
+                    }
                     
                     // Junta tudo
-                    val allPhotoUrls = (legacyUrls + externalPhotos).joinToString(",")
+                    val allPhotoUrls = allUrls.joinToString(",")
 
                     val workDateObj = obj.getDate("workDate")
                     val workDateMillis = workDateObj?.time
@@ -659,5 +672,44 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _isLoading.value = false
             }
         } 
+    }
+
+    suspend fun loadImagesForEditing(photoUris: String): List<Any> {
+        val imageList = mutableListOf<Any>()
+        if (photoUris.isBlank()) {
+            return imageList
+        }
+
+        val uriList = photoUris.split(",").filter { it.isNotBlank() }
+
+        for (path in uriList) {
+            val image = withContext(Dispatchers.IO) {
+                try {
+                    if (path.startsWith("http")) {
+                        // Logic from PdfGenerator to fetch from cloud
+                        Log.d("ViewModel", "Fetching remote image: $path")
+                        val params = mapOf("photoUrl" to path)
+                        val result: Map<String, Any> = ParseCloud.callFunction("getPhotoAsBase64", params)
+                        val base64String = result["base64"] as? String
+                        if (base64String != null) {
+                            val imageBytes = android.util.Base64.decode(base64String, android.util.Base64.DEFAULT)
+                            android.graphics.BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                        } else {
+                            Log.w("ViewModel", "Base64 string was null for $path")
+                            null // Failed to get base64
+                        }
+                    } else {
+                        // It's a local URI, pass it directly
+                        Log.d("ViewModel", "Using local URI: $path")
+                        path.toUri()
+                    }
+                } catch (e: Exception) {
+                    Log.e("MainViewModel", "Error loading image for editing: $path", e)
+                    null // Return null on error
+                }
+            }
+            image?.let { imageList.add(it) }
+        }
+        return imageList
     }
 }

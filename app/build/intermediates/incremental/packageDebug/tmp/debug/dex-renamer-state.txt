@@ -1,4 +1,4 @@
-#Sat Feb 07 05:55:32 AMT 2026
+#Wed Feb 11 10:41:08 AMT 2026
 base.0=/home/hercullezz/StudioProjects/Relatorio/app/build/intermediates/dex/debug/mergeExtDexDebug/classes.dex
 base.1=/home/hercullezz/StudioProjects/Relatorio/app/build/intermediates/dex/debug/mergeProjectDexDebug/0/classes.dex
 base.10=/home/hercullezz/StudioProjects/Relatorio/app/build/intermediates/dex/debug/mergeExtDexDebug/classes2.dex

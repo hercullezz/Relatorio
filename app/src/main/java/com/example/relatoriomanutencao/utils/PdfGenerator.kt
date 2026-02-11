@@ -9,24 +9,21 @@ import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import android.os.Environment
+import android.util.Base64
 import android.util.Log
 import android.widget.Toast
 import androidx.core.net.toUri
 import com.example.relatoriomanutencao.data.MaintenanceItem
+import com.parse.ParseCloud
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
-import java.io.InputStream
-import java.net.HttpURLConnection
-import java.net.URL
 import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
 import java.time.Instant
+import java.util.Date
 import java.util.Locale
-import com.example.relatoriomanutencao.utils.ShiftManager
 
 object PdfGenerator {
 
@@ -47,9 +44,7 @@ object PdfGenerator {
 
             val document = PdfDocument()
 
-            // Estado da paginação
             var pageNumber = 1
-            // A info da página é a mesma para todas as páginas
             var pageInfo = PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create()
             var page = document.startPage(pageInfo)
             var canvas = page.canvas
@@ -68,7 +63,7 @@ object PdfGenerator {
             val paintSectionHeader = Paint().apply {
                 textSize = 14f
                 typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-                color = Color.rgb(0, 51, 102) // Azul escuro profissional
+                color = Color.rgb(0, 51, 102) // Azul escuro
             }
             val paintTextBold = Paint().apply {
                 textSize = 10f
@@ -88,19 +83,15 @@ object PdfGenerator {
             val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
             val fileNameDateFormat = SimpleDateFormat("dd-MM-yyyy", Locale.getDefault())
 
-            // Inferir turno a partir dos itens; prefira valores vindos do servidor quando disponíveis
             val shiftInfos = items.map { item ->
                 val serverWorkMillis = item.workDateMillisFromServer
                 val serverShiftId = item.shiftId
 
                 if (serverWorkMillis != null && serverShiftId != null) {
-                    // Use the server-provided workDate + shiftId to ensure 3rd-shift midnight logic
                     ShiftManager.getShiftInfoForShiftId(serverShiftId, Instant.ofEpochMilli(serverWorkMillis))
                 } else if (serverShiftId != null) {
-                    // No server workDate, but shiftId known: compute workDate for that shift at item's timestamp
                     ShiftManager.getShiftInfoForShiftId(serverShiftId, Instant.ofEpochMilli(item.date))
                 } else {
-                    // Fallback: infer shift from the item's local timestamp
                     ShiftManager.getShiftInfo(item.date)
                 }
             }
@@ -119,7 +110,6 @@ object PdfGenerator {
                 shiftName = si.shiftName
                 shiftIdForFilename = "T${si.shiftId}"
             } else {
-                // Múltiplas datas/turnos: consolidado entre min e max
                 val minDate = distinctWorkDates.minOrNull() ?: Date()
                 val maxDate = distinctWorkDates.maxOrNull() ?: Date()
                 reportDate = "${dateFormat.format(minDate)} - ${dateFormat.format(maxDate)}"
@@ -128,15 +118,14 @@ object PdfGenerator {
                 shiftIdForFilename = "Consolidado"
             }
 
-            // --- Helpers de Paginação e Rodapé ---
             fun drawFooter(canvas: android.graphics.Canvas, pageNum: Int) {
-                val yPos = PAGE_HEIGHT - 20f // Posição a 20px da parte inferior
+                val yPos = PAGE_HEIGHT - 20f
                 val paintFooter = Paint().apply {
                     textSize = 8f
                     color = Color.GRAY
                     textAlign = Paint.Align.CENTER
                 }
-                val footerText = "Página $pageNum - Relatório gerado em ${SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())}"
+                val footerText = "Página $pageNum - Gerado em ${SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())}"
                 canvas.drawText(footerText, PAGE_WIDTH / 2f, yPos, paintFooter)
             }
 
@@ -161,45 +150,32 @@ object PdfGenerator {
             canvas.drawLine(MARGIN, yPosition, PAGE_WIDTH - MARGIN, yPosition, paintLine)
             yPosition += 20
 
-            // --- SEPARAÇÃO DOS DADOS ---
             val graphicsItems = items.filter { it.serviceType == "Gráfico de Produção" }
-            val serviceItems = items.filter { it.serviceType != "Gráfico de Produção" }
-                .groupBy { it.machine }
-                .toSortedMap()
+            val serviceItems = items.filter { it.serviceType != "Gráfico de Produção" }.groupBy { it.machine }.toSortedMap()
 
-            // --- DESENHAR GRÁFICOS (GRID DINÂMICO) ---
             if (graphicsItems.isNotEmpty()) {
                 checkPageBreak(30f)
                 canvas.drawText("GRÁFICOS DE PRODUÇÃO E LINHAS", MARGIN, yPosition, paintSectionHeader)
                 yPosition += 20
 
                 val chunks = graphicsItems.chunked(2)
-
                 for (chunk in chunks) {
                     val rowHeight = 200f
                     checkPageBreak(rowHeight)
 
                     if (chunk.size == 1) {
-                        val item = chunk[0]
-                        drawGraphItem(context, canvas, item, MARGIN + (CONTENT_WIDTH / 4), yPosition)
+                        drawGraphItem(context, canvas, chunk[0], MARGIN + (CONTENT_WIDTH / 4), yPosition)
+                    } else {
+                        drawGraphItem(context, canvas, chunk[0], MARGIN, yPosition)
+                        drawGraphItem(context, canvas, chunk[1], MARGIN + (CONTENT_WIDTH / 2) + 10, yPosition)
                     }
-                    else {
-                        val item1 = chunk[0]
-                        val item2 = chunk[1]
-
-                        drawGraphItem(context, canvas, item1, MARGIN, yPosition)
-                        drawGraphItem(context, canvas, item2, MARGIN + (CONTENT_WIDTH / 2) + 10, yPosition)
-                    }
-
                     yPosition += rowHeight + 20
                 }
-
                 yPosition += 10
                 canvas.drawLine(MARGIN, yPosition, PAGE_WIDTH - MARGIN, yPosition, paintLine)
                 yPosition += 20
             }
 
-            // --- DESENHAR SERVIÇOS (AGRUPADOS) ---
             if (serviceItems.isNotEmpty()) {
                 checkPageBreak(30f)
                 canvas.drawText("DETALHAMENTO DE SERVIÇOS REALIZADOS", MARGIN, yPosition, paintSectionHeader)
@@ -217,10 +193,8 @@ object PdfGenerator {
                         val maxWidth = CONTENT_WIDTH - 20
                         val descLines = breakTextIntoLines(item.description, paintTextNormal, maxWidth)
                         val heightNeeded = 20f + (descLines.size * 12f)
-
                         val photoUris = item.photoUris.split(",").filter { it.isNotBlank() }.take(3)
                         val hasPhotos = photoUris.isNotEmpty()
-
                         val photosRowHeight = if (hasPhotos) 110f else 0f
 
                         checkPageBreak(heightNeeded + photosRowHeight)
@@ -228,7 +202,7 @@ object PdfGenerator {
                         val typePaint = Paint().apply {
                             textSize = 10f
                             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-                            color = when(item.serviceType) {
+                            color = when (item.serviceType) {
                                 "Corretiva" -> Color.RED
                                 "Preventiva" -> Color.rgb(0, 100, 0)
                                 "Informação" -> Color.rgb(0, 0, 150)
@@ -245,7 +219,6 @@ object PdfGenerator {
 
                         if (hasPhotos) {
                             yPosition += 5
-
                             val destWidth = 150f
                             val destHeight = 100f
                             var currentX = MARGIN + 10f
@@ -260,20 +233,23 @@ object PdfGenerator {
                                     } catch (e: Exception) {
                                         e.printStackTrace()
                                     }
+                                } else {
+                                    // Se o bitmap falhar, desenha um placeholder
+                                    val errorPaint = Paint().apply { color = Color.GRAY; textSize = 8f; textAlign = Paint.Align.CENTER }
+                                    val errorRect = RectF(currentX, yPosition, currentX + destWidth, yPosition + destHeight)
+                                    canvas.drawRect(errorRect, Paint().apply { color = Color.LTGRAY })
+                                    canvas.drawText("[Falha]", errorRect.centerX(), errorRect.centerY(), errorPaint)
                                 }
                                 currentX += destWidth + 10
                             }
-
                             yPosition += photosRowHeight
                         }
-
                         yPosition += 8
                     }
                     yPosition += 10
                 }
             }
 
-            // Finaliza a última página
             drawFooter(canvas, pageNumber)
             document.finishPage(page)
 
@@ -299,40 +275,28 @@ object PdfGenerator {
 
     private fun breakTextIntoLines(text: String, paint: Paint, maxWidth: Float): List<String> {
         val finalLines = mutableListOf<String>()
-        val paragraphs = text.split("\n") // Correção da quebra de linha
-
-        for (paragraph in paragraphs) {
+        text.split("\n").forEach { paragraph ->
             if (paragraph.isBlank()) {
                 finalLines.add("")
-                continue
+                return@forEach
             }
-
             val words = paragraph.split(" ")
             val currentLine = StringBuilder()
-
             for (word in words) {
                 val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
-                val width = paint.measureText(testLine)
-
-                if (width <= maxWidth) {
-                    currentLine.setLength(0)
-                    currentLine.append(testLine)
+                if (paint.measureText(testLine) <= maxWidth) {
+                    currentLine.clear().append(testLine)
                 } else {
-                    if (currentLine.isNotEmpty()) {
-                        finalLines.add(currentLine.toString())
-                    }
-                    currentLine.setLength(0)
-                    currentLine.append(word)
+                    if (currentLine.isNotEmpty()) finalLines.add(currentLine.toString())
+                    currentLine.clear().append(word)
                 }
             }
-            if (currentLine.isNotEmpty()) {
-                finalLines.add(currentLine.toString())
-            }
+            if (currentLine.isNotEmpty()) finalLines.add(currentLine.toString())
         }
         return finalLines
     }
 
-    private fun drawGraphItem(context: Context, canvas: android.graphics.Canvas, item: MaintenanceItem, x: Float, y: Float) {
+    private suspend fun drawGraphItem(context: Context, canvas: android.graphics.Canvas, item: MaintenanceItem, x: Float, y: Float) {
         val paintTextBold = Paint().apply {
             textSize = 9f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
@@ -346,8 +310,7 @@ object PdfGenerator {
 
         val photoUris = item.photoUris.split(",").filter { it.isNotBlank() }
         if (photoUris.isNotEmpty()) {
-            val imgUrl = photoUris[0]
-            val bitmap = getBitmapFromUrlOrUri(context, imgUrl)
+            val bitmap = getBitmapFromUrlOrUri(context, photoUris[0])
             if (bitmap != null) {
                 val destWidth = 230f
                 val destHeight = 150f
@@ -360,45 +323,36 @@ object PdfGenerator {
         }
 
         if (item.description.isNotBlank() && item.description != "Registro de Gráfico de Produção") {
-             val wrappedDesc = breakTextIntoLines(item.description, paintTextSmall, 230f)
-             var textY = y + 170
-             wrappedDesc.take(2).forEach { line ->
-                 canvas.drawText(line, x, textY, paintTextSmall)
-                 textY += 10
-             }
+            val wrappedDesc = breakTextIntoLines(item.description, paintTextSmall, 230f)
+            var textY = y + 170
+            wrappedDesc.take(2).forEach { line ->
+                canvas.drawText(line, x, textY, paintTextSmall)
+                textY += 10
+            }
         }
     }
 
-    // Tenta carregar imagem da URL (Nuvem) ou URI (Local - Cache)
-    private fun getBitmapFromUrlOrUri(context: Context, path: String): Bitmap? {
-        Log.d("PdfGenerator", "Tentando baixar imagem: $path")
+    private suspend fun getBitmapFromUrlOrUri(context: Context, path: String): Bitmap? {
+        Log.d("PdfGenerator", "Processando imagem: $path")
         return try {
             if (path.startsWith("http")) {
-                var downloadUrl = path
-                if (downloadUrl.contains("cloudinary.com") && downloadUrl.contains("/upload/")) {
-                    downloadUrl = downloadUrl.replace("/upload/", "/upload/w_1024,q_auto,f_jpg/")
-                    Log.d("PdfGenerator", "URL Otimizada: $downloadUrl")
+                Log.d("PdfGenerator", "Chamando Cloud Function 'getPhotoAsBase64' para: $path")
+                val params = mapOf("photoUrl" to path)
+                val result: Map<String, Any> = ParseCloud.callFunction("getPhotoAsBase64", params)
+                val base64String = result["base64"] as? String
+                if (base64String != null) {
+                    val imageBytes = Base64.decode(base64String, Base64.DEFAULT)
+                    BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                } else {
+                    Log.e("PdfGenerator", "Cloud function retornou base64 nulo para: $path")
+                    null
                 }
-                val url = URL(downloadUrl)
-                val connection = url.openConnection() as HttpURLConnection
-                connection.doInput = true
-                connection.connectTimeout = 10000
-                connection.readTimeout = 10000
-                connection.connect()
-                val input: InputStream = connection.inputStream
-                val bitmap = BitmapFactory.decodeStream(input)
-                input.close()
-                bitmap
             } else {
-                // Uso da KTX para conversão de String para Uri
                 val uri = path.toUri()
-                context.contentResolver.openInputStream(uri)?.use {
-                    BitmapFactory.decodeStream(it)
-                }
+                context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
             }
         } catch (e: Exception) {
-            Log.e("PdfGenerator", "Erro ao baixar imagem: $path", e)
-            e.printStackTrace()
+            Log.e("PdfGenerator", "Erro ao obter bitmap via Cloud Function ou URI: $path", e)
             null
         }
     }

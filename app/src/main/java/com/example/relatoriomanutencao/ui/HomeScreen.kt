@@ -41,7 +41,7 @@ fun HomeScreen(
         val cb = Calendar.getInstance().apply { timeInMillis = bMillis }
         return ca.get(Calendar.YEAR) == cb.get(Calendar.YEAR) && ca.get(Calendar.DAY_OF_YEAR) == cb.get(Calendar.DAY_OF_YEAR)
     }
-    
+
     // Estados para o diálogo de confirmação de exclusão
     var showDeleteDialog by remember { mutableStateOf(false) }
     var itemToDelete by remember { mutableStateOf<com.example.relatoriomanutencao.data.MaintenanceItem?>(null) }
@@ -60,7 +60,7 @@ fun HomeScreen(
         floatingActionButton = {
             FloatingActionButton(onClick = {
                 // Redireciona para a rota "new" que é a tela de Novo Serviço
-                onReportClick("new_service") 
+                onReportClick("new_service")
             }) {
                 Icon(Icons.Default.Add, contentDescription = "Novo Serviço")
             }
@@ -69,13 +69,13 @@ fun HomeScreen(
         Box(modifier = Modifier
             .fillMaxSize()
             .padding(padding)) {
-            
+
             if (isLoading) {
                 CircularProgressIndicator(
                     modifier = Modifier.align(Alignment.Center)
                 )
             }
-            
+
             Column(modifier = Modifier.fillMaxWidth()) {
                 // Busca por palavras
                 OutlinedTextField(
@@ -116,10 +116,10 @@ fun HomeScreen(
                             .fillMaxWidth()
                             .padding(8.dp)
                             .combinedClickable(
-                                onClick = { 
+                                onClick = {
                                     // Detalhes ou Edição futura
                                 },
-                                onLongClick = { 
+                                onLongClick = {
                                     itemToDelete = maintenance
                                     showDeleteDialog = true
                                 }
@@ -145,7 +145,7 @@ fun HomeScreen(
                         }
                     }
                 }
-                
+
                 if (displayed.isEmpty() && !isLoading) {
                     item {
                         Box(
@@ -182,7 +182,7 @@ fun HomeScreen(
                     }
                 },
                 dismissButton = {
-                    Button(onClick = { 
+                    Button(onClick = {
                         showDeleteDialog = false
                         itemToDelete = null
                     }) {

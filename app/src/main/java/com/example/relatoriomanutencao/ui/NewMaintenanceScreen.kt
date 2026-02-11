@@ -77,10 +77,10 @@ fun NewMaintenanceScreen(viewModel: MainViewModel) {
     var overrideDateMillis by remember { mutableStateOf(currentShift.workDate.time) }
 
     val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-    
+
     // Câmera e Galeria
     val cameraUri = remember { mutableStateOf<Uri?>(null) }
-    
+
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         if (success && cameraUri.value != null) {
             if (selectedImageUris.size < 3) {
@@ -155,7 +155,7 @@ fun NewMaintenanceScreen(viewModel: MainViewModel) {
                     onExpandedChange = { isLineDropdownExpanded = !isLineDropdownExpanded }
                 ) {
                     OutlinedTextField(
-                        value = selectedLine?.name ?: "", 
+                        value = selectedLine?.name ?: "",
                         onValueChange = {},
                         readOnly = true,
                         label = { Text(if (isGraphMode) "Linha de Produção (Obrigatório)" else "Linha de Produção") },
@@ -200,8 +200,8 @@ fun NewMaintenanceScreen(viewModel: MainViewModel) {
                             onValueChange = {},
                             readOnly = true,
                             label = { Text("Máquina") },
-                            placeholder = { 
-                                Text(if (selectedLine == null) "Selecione máquina sem linha" else "Selecione máquina da linha") 
+                            placeholder = {
+                                Text(if (selectedLine == null) "Selecione máquina sem linha" else "Selecione máquina da linha")
                             },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isMachineDropdownExpanded) },
                             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
@@ -278,7 +278,7 @@ fun NewMaintenanceScreen(viewModel: MainViewModel) {
                         Text("${selectedImageUris.size}/3", modifier = Modifier.padding(4.dp))
                     }
                 }
-                
+
                 // Aviso sobre limite
                 if (selectedImageUris.size < 3) {
                      Row(verticalAlignment = Alignment.CenterVertically) {
@@ -327,8 +327,8 @@ fun NewMaintenanceScreen(viewModel: MainViewModel) {
                                 }
                                 // Botão X para remover foto
                                 IconButton(
-                                    onClick = { 
-                                        selectedImageUris = selectedImageUris.filter { it != uri } 
+                                    onClick = {
+                                        selectedImageUris = selectedImageUris.filter { it != uri }
                                     },
                                     modifier = Modifier
                                         .align(Alignment.TopEnd)
@@ -338,8 +338,8 @@ fun NewMaintenanceScreen(viewModel: MainViewModel) {
                                         .size(24.dp)
                                 ) {
                                     Icon(
-                                        Icons.Default.Close, 
-                                        contentDescription = "Remover", 
+                                        Icons.Default.Close,
+                                        contentDescription = "Remover",
                                         tint = Color.Red,
                                         modifier = Modifier.size(16.dp)
                                     )
@@ -418,9 +418,9 @@ fun NewMaintenanceScreen(viewModel: MainViewModel) {
                     onClick = {
                         if (isFormValid) {
                             val urisString = selectedImageUris.joinToString(",") { it.toString() }
-                            
+
                             val finalMachineName = if (isGraphMode) {
-                                "LINHA ${selectedLine!!.name}" 
+                                "LINHA ${selectedLine!!.name}"
                             } else {
                                 if (selectedMachine!!.lineId != null) {
                                     val line = productionLines.find { it.id == selectedMachine!!.lineId }
@@ -429,7 +429,7 @@ fun NewMaintenanceScreen(viewModel: MainViewModel) {
                                     selectedMachine!!.name
                                 }
                             }
-                            
+
                             val finalDescription = if (isGraphMode && description.isBlank()) "Registro de Gráfico de Produção" else description
 
                             viewModel.addMaintenanceItem(
@@ -440,10 +440,10 @@ fun NewMaintenanceScreen(viewModel: MainViewModel) {
                                 overrideShiftId = if (overrideShiftEnabled) overrideSelectedShiftId else null,
                                 overrideWorkDateMillis = if (overrideShiftEnabled) overrideDateMillis else null
                             )
-                            
+
                             description = ""
                             selectedImageUris = emptyList()
-                            if (!isGraphMode) { 
+                            if (!isGraphMode) {
                                 selectedMachine = null
                             }
                         }
