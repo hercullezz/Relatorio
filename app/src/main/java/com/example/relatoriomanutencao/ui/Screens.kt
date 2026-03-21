@@ -1045,12 +1045,18 @@ fun ServicesListScreen(viewModel: MainViewModel) {
                              isGeneratingPdf = true
                              val shiftInfoForPdf = when (filterMode) {
                                  "CURRENT" -> ShiftManager.getCurrentShiftInfo()
-                                 "DAY" -> if (selectedShifts.size == 1) {
-                                     val selectedShiftId = selectedShifts.first()
-                                     val workDateMillis = Instant.ofEpochMilli(selectedDateMillis).atZone(ZoneId.systemDefault())
-                                         .toLocalDate().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-                                     ShiftManager.getShiftInfoForShiftIdAndWorkDate(selectedShiftId, workDateMillis)
-                                 } else null
+                                 "DAY" -> {
+                                     val currentSelectedShifts = mutableSetOf<Int>()
+                                     if (shift1) currentSelectedShifts.add(1)
+                                     if (shift2) currentSelectedShifts.add(2)
+                                     if (shift3) currentSelectedShifts.add(3)
+                                     if (currentSelectedShifts.size == 1) {
+                                         val selectedShiftId = currentSelectedShifts.first()
+                                         val workDateMillis = Instant.ofEpochMilli(selectedDateMillis).atZone(ZoneId.systemDefault())
+                                             .toLocalDate().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                                         ShiftManager.getShiftInfoForShiftIdAndWorkDate(selectedShiftId, workDateMillis)
+                                     } else null
+                                 }
                                  else -> null
                              }
                              PdfGenerator.generateConsolidatedReport(context, displayedItems, shiftInfoForPdf)
