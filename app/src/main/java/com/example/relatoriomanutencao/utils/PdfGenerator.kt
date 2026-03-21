@@ -33,7 +33,11 @@ object PdfGenerator {
     private const val MARGIN = 40f
     private const val CONTENT_WIDTH = PAGE_WIDTH - (MARGIN * 2)
 
-    suspend fun generateConsolidatedReport(context: Context, items: List<MaintenanceItem>) {
+    suspend fun generateConsolidatedReport(
+        context: Context,
+        items: List<MaintenanceItem>,
+        currentShiftInfo: ShiftManager.ShiftInfo? = null
+    ) {
         withContext(Dispatchers.IO) {
             if (items.isEmpty()) {
                 withContext(Dispatchers.Main) {
@@ -83,13 +87,37 @@ object PdfGenerator {
             val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
             val fileNameDateFormat = SimpleDateFormat("dd-MM-yyyy", Locale.getDefault())
 
+            val effectiveShiftInfo = currentShiftInfo ?: run {
+                val candidateShiftInfos = items.mapNotNull { item ->
+                    val serverWorkMillis = item.workDateMillisFromServer
+                    val serverShiftId = item.shiftId
+
+                    when {
+                        serverWorkMillis != null && serverShiftId != null -> ShiftManager.getShiftInfoForShiftIdAndWorkDate(serverShiftId, serverWorkMillis)
+                        serverShiftId != null -> ShiftManager.getShiftInfoForShiftId(serverShiftId, Instant.ofEpochMilli(item.date))
+                        else -> ShiftManager.getShiftInfo(item.date)
+                    }
+                }
+
+                val grouped = candidateShiftInfos.groupingBy { it.shiftId }.eachCount().maxByOrNull { it.value }
+                val dominantShiftId = grouped?.key
+
+                if (dominantShiftId != null) {
+                    candidateShiftInfos.find { it.shiftId == dominantShiftId } ?: candidateShiftInfos.firstOrNull()
+                } else {
+                    ShiftManager.getCurrentShiftInfo()
+                }
+            }
+
             val shiftInfos = items.map { item ->
                 val serverWorkMillis = item.workDateMillisFromServer
                 val serverShiftId = item.shiftId
 
                 if (serverWorkMillis != null && serverShiftId != null) {
-                    ShiftManager.getShiftInfoForShiftId(serverShiftId, Instant.ofEpochMilli(serverWorkMillis))
+                    // Se já temos  workDate do servidor, usa diretamente sem re-interpretar a hora como 00:00
+                    ShiftManager.getShiftInfoForShiftIdAndWorkDate(serverShiftId, serverWorkMillis)
                 } else if (serverShiftId != null) {
+                    // Caso não haja workDate de servidor, tenta inferir a partir do horário do item
                     ShiftManager.getShiftInfoForShiftId(serverShiftId, Instant.ofEpochMilli(item.date))
                 } else {
                     ShiftManager.getShiftInfo(item.date)
@@ -103,7 +131,12 @@ object PdfGenerator {
             val shiftName: String
             val shiftIdForFilename: String
 
-            if (distinctWorkDates.size == 1 && distinctShiftIds.size == 1) {
+            if (currentShiftInfo != null) {
+                reportDate = dateFormat.format(currentShiftInfo.workDate)
+                reportDateFilename = fileNameDateFormat.format(currentShiftInfo.workDate)
+                shiftName = currentShiftInfo.shiftName
+                shiftIdForFilename = "T${currentShiftInfo.shiftId}"
+            } else if (distinctWorkDates.size == 1 && distinctShiftIds.size == 1) {
                 val si = shiftInfos.first()
                 reportDate = dateFormat.format(si.workDate)
                 reportDateFilename = fileNameDateFormat.format(si.workDate)

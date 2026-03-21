@@ -4,11 +4,8 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Environment
 import android.widget.Toast
-import com.example.relatoriomanutencao.utils.ShiftManager
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -36,21 +33,23 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
-import coil.compose.rememberAsyncImagePainter
 import com.example.relatoriomanutencao.data.MaintenanceItem
 import com.example.relatoriomanutencao.data.StockItem
 import com.example.relatoriomanutencao.utils.PdfGenerator
+import com.example.relatoriomanutencao.utils.ShiftManager
 import com.example.relatoriomanutencao.viewmodel.MainViewModel
+import com.parse.ParseUser
 import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
 import java.time.Instant
-import java.util.Calendar
-import java.util.Date
-import java.util.Locale
-import com.parse.ParseUser
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.ZoneId
+import java.util.*
+import kotlin.math.max
+import kotlin.math.min
 
 // --- Stock Screen ---
 @OptIn(ExperimentalMaterial3Api::class)
@@ -609,92 +608,149 @@ fun StockItemCard(
 }
 
 // --- Saved PDFs Screen ---
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SavedReportsScreen() {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
     var fileList by remember { mutableStateOf(listOf<File>()) }
-    
-    // Refresh file list
-    LaunchedEffect(Unit) {
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var fileToDelete by remember { mutableStateOf<File?>(null) }
+
+    // Função para refresh da lista
+    fun refreshFileList() {
         val dir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
-        fileList = dir?.listFiles()?.filter { it.name.endsWith(".pdf") }?.toList() ?: emptyList()
+        fileList = dir?.listFiles()?.filter { it.isFile && it.extension.equals("pdf", ignoreCase = true) }
+            ?.sortedByDescending { it.lastModified() }?.toList() ?: emptyList()
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Relatórios Salvos", style = MaterialTheme.typography.headlineSmall)
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        if (fileList.isEmpty()) {
-            Text("Nenhum relatório encontrado.")
-        } else {
-            LazyColumn {
-                items(fileList) { file ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp)
-                            .clickable {
-                                // Lógica para ABRIR o PDF
-                                val uri = FileProvider.getUriForFile(
-                                    context,
-                                    "${context.packageName}.provider",
-                                    file
-                                )
-                                val intent = Intent(Intent.ACTION_VIEW).apply {
-                                    setDataAndType(uri, "application/pdf")
-                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                }
-                                try {
-                                    context.startActivity(Intent.createChooser(intent, "Abrir PDF"))
-                                } catch (e: Exception) {
-                                    Toast.makeText(context, "Nenhum leitor de PDF encontrado.", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
+    // Refresh automático ao abrir a aba
+    LaunchedEffect(Unit) {
+        refreshFileList()
+    }
+
+    // Formatação de data
+    val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { paddingValues ->
+        Column(modifier = Modifier.fillMaxSize().padding(paddingValues).padding(16.dp)) {
+            Text("Relatórios Salvos", style = MaterialTheme.typography.headlineSmall)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (fileList.isEmpty()) {
+                Text("Nenhum relatório encontrado.")
+            } else {
+                LazyColumn {
+                    items(fileList) { file ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp)
+                                .clickable {
+                                    // Lógica para ABRIR o PDF
+                                    val uri = FileProvider.getUriForFile(
+                                        context,
+                                        "${context.packageName}.provider",
+                                        file
+                                    )
+                                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                                        setDataAndType(uri, "application/pdf")
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    try {
+                                        context.startActivity(Intent.createChooser(intent, "Abrir PDF"))
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Nenhum leitor de PDF encontrado.", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(file.name, fontWeight = FontWeight.Bold)
-                                Text("Tamanho: ${file.length() / 1024} KB")
-                                Text("(Toque para abrir)", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
-                            }
-                            
-                            IconButton(onClick = {
-                                // Share Intent
-                                val uri = FileProvider.getUriForFile(
-                                    context, 
-                                    "${context.packageName}.provider", 
-                                    file
-                                )
-                                val intent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "application/pdf"
-                                    putExtra(Intent.EXTRA_STREAM, uri)
-                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(file.name, fontWeight = FontWeight.Bold)
+                                    Text("Tamanho: ${file.length() / 1024} KB", style = MaterialTheme.typography.bodySmall)
+                                    Text("Criado em: ${dateFormat.format(file.lastModified())}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                                    Text("(Toque para abrir)", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                                 }
-                                context.startActivity(Intent.createChooser(intent, "Compartilhar PDF"))
-                            }) {
-                                Icon(Icons.Default.Share, contentDescription = "Compartilhar")
-                            }
-                            
-                            IconButton(onClick = {
-                                if (file.delete()) {
-                                    // Refresh list
-                                    val dir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
-                                    fileList = dir?.listFiles()?.filter { it.name.endsWith(".pdf") }?.toList() ?: emptyList()
-                                    Toast.makeText(context, "Arquivo excluído", Toast.LENGTH_SHORT).show()
+
+                                IconButton(onClick = {
+                                    // Share Intent
+                                    val uri = FileProvider.getUriForFile(
+                                        context,
+                                        "${context.packageName}.provider",
+                                        file
+                                    )
+                                    val intent = Intent(Intent.ACTION_SEND).apply {
+                                        type = "application/pdf"
+                                        putExtra(Intent.EXTRA_STREAM, uri)
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    context.startActivity(Intent.createChooser(intent, "Compartilhar PDF"))
+                                }) {
+                                    Icon(Icons.Default.Share, contentDescription = "Compartilhar")
                                 }
-                            }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Excluir")
+
+                                IconButton(onClick = {
+                                    fileToDelete = file
+                                    showDeleteDialog = true
+                                }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Excluir")
+                                }
                             }
                         }
                     }
                 }
             }
+        }
+
+        // Diálogo de confirmação de exclusão
+        if (showDeleteDialog && fileToDelete != null) {
+            AlertDialog(
+                onDismissRequest = { showDeleteDialog = false },
+                title = { Text("Excluir Relatório") },
+                text = { Text("Tem certeza que deseja excluir o relatório '${fileToDelete?.name}'? Esta ação não pode ser desfeita.") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            try {
+                                if (fileToDelete?.delete() == true) {
+                                    refreshFileList()
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("Relatório excluído com sucesso")
+                                    }
+                                } else {
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("Erro ao excluir o relatório")
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar("Erro: ${e.message}")
+                                }
+                            }
+                            showDeleteDialog = false
+                            fileToDelete = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("Excluir")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteDialog = false }) {
+                        Text("Cancelar")
+                    }
+                }
+            )
         }
     }
 }
@@ -739,24 +795,47 @@ fun ServicesListScreen(viewModel: MainViewModel) {
         val lowerQuery = searchQuery.trim().lowercase(Locale.getDefault())
 
         if (filterMode == "CURRENT") {
-            // Use logged-in user's configured ShiftId when available, fallback to device current shift
-            val currentUser = ParseUser.getCurrentUser()
-            val deviceCurrent = ShiftManager.getCurrentShiftInfo()
-            val userShiftId = currentUser?.getNumber("ShiftId")?.toInt() ?: deviceCurrent.shiftId
-            val userShiftInfo = ShiftManager.getShiftInfoForShiftId(userShiftId, Instant.now())
-            val userWorkDateMillis = userShiftInfo.workDate.time
+            // Use device current shift/time as source of truth for 'Turno Atual'
+            val now = Instant.now()
+            val currentShiftInfo = ShiftManager.getCurrentShiftInfo()
+            val currentShiftId = currentShiftInfo.shiftId
+            val currentWorkDateMillis = currentShiftInfo.workDate.time
+
+            // Shift sequence definitions mirror ShiftManager
+            val shiftDef = listOf(
+                ShiftManager.Shift(1, "", LocalTime.of(5, 0), LocalTime.of(13, 40), false),
+                ShiftManager.Shift(2, "", LocalTime.of(13, 40), LocalTime.of(22, 0), false),
+                ShiftManager.Shift(3, "", LocalTime.of(22, 0), LocalTime.of(5, 0), true)
+            ).find { it.id == currentShiftId } ?: ShiftManager.Shift(1, "", LocalTime.of(5, 0), LocalTime.of(13, 40), false)
+
+            val workLocalDate = Instant.ofEpochMilli(currentWorkDateMillis).atZone(ZoneId.systemDefault()).toLocalDate()
+            val windowStart = LocalDateTime.of(workLocalDate, shiftDef.start)
+            val windowEnd = if (shiftDef.crossesMidnight) {
+                LocalDateTime.of(workLocalDate.plusDays(1), shiftDef.end)
+            } else {
+                LocalDateTime.of(workLocalDate, shiftDef.end)
+            }
+
+            val windowStartInstant = windowStart.atZone(ZoneId.systemDefault()).toInstant()
+            val windowEndInstant = windowEnd.atZone(ZoneId.systemDefault()).toInstant()
 
             allItems.filter { item ->
-                val itemShift = item.shiftId ?: ShiftManager.getShiftInfo(item.date).shiftId
-                val itemWorkDate = item.workDateMillisFromServer ?: ShiftManager.getShiftInfo(item.date).workDate.time
+                val itemInstant = Instant.ofEpochMilli(item.date)
 
-                val matchesShift = (itemShift == userShiftId)
-                val matchesWorkDate = (itemWorkDate == userWorkDateMillis)
+                // Prefer shift/workDate salvos pelo servidor (se estiverem presentes)
+                val itemWorkDateMillis = item.workDateMillisFromServer ?: item.date
+                val itemShift = item.shiftId ?: currentShiftId.takeIf { itemWorkDateMillis == currentWorkDateMillis }
+                    ?: ShiftManager.getShiftInfo(itemInstant).shiftId
+
+                val inCurrentWindow = itemInstant >= windowStartInstant && itemInstant <= windowEndInstant
+                val matchesShiftAndWorkDate = (itemShift == currentShiftId && itemWorkDateMillis == currentWorkDateMillis)
+                val matchesWorkDateOnly = (itemWorkDateMillis == currentWorkDateMillis && item.shiftId == null)
 
                 val matchesSearch = if (lowerQuery.isEmpty()) true else {
                     (item.machine.lowercase().contains(lowerQuery) || item.description.lowercase().contains(lowerQuery) || item.serviceType.lowercase().contains(lowerQuery))
                 }
-                matchesShift && matchesWorkDate && matchesSearch
+
+                (inCurrentWindow || matchesShiftAndWorkDate || matchesWorkDateOnly) && matchesSearch
             }
         } else {
             // determine date window
@@ -766,10 +845,46 @@ fun ServicesListScreen(viewModel: MainViewModel) {
 
             when (filterMode) {
                 "DAY" -> {
-                    calStart.set(Calendar.HOUR_OF_DAY, 0); calStart.set(Calendar.MINUTE, 0); calStart.set(Calendar.SECOND, 0); calStart.set(Calendar.MILLISECOND, 0)
-                    startMillis = calStart.timeInMillis
-                    calStart.add(Calendar.DAY_OF_YEAR, 1)
-                    endMillis = calStart.timeInMillis - 1
+                    // Para DAY, o intervalo é baseado nos turnos selecionados
+                    val selectedLocalDate = Instant.ofEpochMilli(selectedDateMillis).atZone(ZoneId.systemDefault()).toLocalDate()
+                    
+                    val shiftWindows = mutableListOf<Pair<Long, Long>>()
+                    
+                    if (shift1) {
+                        val start = LocalDateTime.of(selectedLocalDate, LocalTime.of(5, 0))
+                            .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                        val end = LocalDateTime.of(selectedLocalDate, LocalTime.of(13, 40))
+                            .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                        shiftWindows.add(start to end)
+                    }
+                    
+                    if (shift2) {
+                        val start = LocalDateTime.of(selectedLocalDate, LocalTime.of(13, 40))
+                            .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                        val end = LocalDateTime.of(selectedLocalDate, LocalTime.of(22, 0))
+                            .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                        shiftWindows.add(start to end)
+                    }
+                    
+                    if (shift3) {
+                        val start = LocalDateTime.of(selectedLocalDate, LocalTime.of(21, 30))
+                            .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                        val nextDay = selectedLocalDate.plusDays(1)
+                        val end = LocalDateTime.of(nextDay, LocalTime.of(6, 30))
+                            .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                        shiftWindows.add(start to end)
+                    }
+                    
+                    if (shiftWindows.isNotEmpty()) {
+                        startMillis = shiftWindows.minOf { it.first }
+                        endMillis = shiftWindows.maxOf { it.second }
+                    } else {
+                        // Fallback se nenhum turno selecionado (não deve acontecer)
+                        calStart.set(Calendar.HOUR_OF_DAY, 0); calStart.set(Calendar.MINUTE, 0); calStart.set(Calendar.SECOND, 0); calStart.set(Calendar.MILLISECOND, 0)
+                        startMillis = calStart.timeInMillis
+                        calStart.add(Calendar.DAY_OF_YEAR, 1)
+                        endMillis = calStart.timeInMillis - 1
+                    }
                 }
                 "WEEK" -> {
                     val firstDay = calStart.getFirstDayOfWeek()
@@ -780,9 +895,13 @@ fun ServicesListScreen(viewModel: MainViewModel) {
                     endMillis = calStart.timeInMillis - 1
                 }
                 else -> { // RANGE
-                    val sCal = Calendar.getInstance().apply { timeInMillis = rangeStartMillis }
+                    val normalizedStart = min(rangeStartMillis, rangeEndMillis)
+                    val normalizedEnd = max(rangeStartMillis, rangeEndMillis)
+                    rangeStartMillis = normalizedStart
+                    rangeEndMillis = normalizedEnd
+                    val sCal = Calendar.getInstance().apply { timeInMillis = normalizedStart }
                     sCal.set(Calendar.HOUR_OF_DAY, 0); sCal.set(Calendar.MINUTE, 0); sCal.set(Calendar.SECOND, 0); sCal.set(Calendar.MILLISECOND, 0)
-                    val eCal = Calendar.getInstance().apply { timeInMillis = rangeEndMillis }
+                    val eCal = Calendar.getInstance().apply { timeInMillis = normalizedEnd }
                     eCal.set(Calendar.HOUR_OF_DAY, 23); eCal.set(Calendar.MINUTE, 59); eCal.set(Calendar.SECOND, 59); eCal.set(Calendar.MILLISECOND, 999)
                     startMillis = sCal.timeInMillis
                     endMillis = eCal.timeInMillis
@@ -794,14 +913,60 @@ fun ServicesListScreen(viewModel: MainViewModel) {
             if (shift2) selectedShifts.add(2)
             if (shift3) selectedShifts.add(3)
 
+            // Calcular workDates esperadas e janela de tempo para cada turno no dia selecionado
+            val selectedLocalDate = Instant.ofEpochMilli(selectedDateMillis).atZone(ZoneId.systemDefault()).toLocalDate()
+            val shiftWindowMap = mutableMapOf<Int, Pair<Long, Long>>() // shiftId -> (startMillis, endMillis)
+            
+            // Turno 1: 05:00 - 13:40 (mesmo dia)
+            if (shift1) {
+                val start = LocalDateTime.of(selectedLocalDate, LocalTime.of(5, 0))
+                    .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                val end = LocalDateTime.of(selectedLocalDate, LocalTime.of(13, 40))
+                    .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                shiftWindowMap[1] = start to end
+            }
+            
+            // Turno 2: 13:40 - 22:00 (mesmo dia)
+            if (shift2) {
+                val start = LocalDateTime.of(selectedLocalDate, LocalTime.of(13, 40))
+                    .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                val end = LocalDateTime.of(selectedLocalDate, LocalTime.of(22, 0))
+                    .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                shiftWindowMap[2] = start to end
+            }
+            
+            // Turno 3: 21:30 (dia selecionado) até 06:30 (dia seguinte)
+            if (shift3) {
+                val start = LocalDateTime.of(selectedLocalDate, LocalTime.of(21, 30))
+                    .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                val nextDay = selectedLocalDate.plusDays(1)
+                val end = LocalDateTime.of(nextDay, LocalTime.of(6, 30))
+                    .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                shiftWindowMap[3] = start to end
+            }
+
             allItems.filter { item ->
                 val inRange = item.date in startMillis..endMillis
-                val itemShift = item.shiftId ?: ShiftManager.getShiftInfo(item.date).shiftId
-                val matchesShift = if (selectedShifts.isEmpty()) true else selectedShifts.contains(itemShift)
+                
+                if (!inRange) return@filter false
+
+                val itemInstant = Instant.ofEpochMilli(item.date)
+
+                // Se há turnos selecionados, verificar se item cai dentro da janela horária de pelo menos um turno selecionado
+                val matchesShift = if (selectedShifts.isEmpty()) {
+                    true // Se nenhum turno selecionado, aceita tudo dentro do dia
+                } else {
+                    // Verificar se itemInstant está dentro de qualquer janela de turno selecionado
+                    selectedShifts.any { shiftId ->
+                        val window = shiftWindowMap[shiftId]
+                        window != null && itemInstant.toEpochMilli() >= window.first && itemInstant.toEpochMilli() <= window.second
+                    }
+                }
+
                 val matchesSearch = if (lowerQuery.isEmpty()) true else {
                     (item.machine.lowercase().contains(lowerQuery) || item.description.lowercase().contains(lowerQuery) || item.serviceType.lowercase().contains(lowerQuery))
                 }
-                inRange && matchesShift && matchesSearch
+                matchesShift && matchesSearch
             }
         }
     }
@@ -878,7 +1043,7 @@ fun ServicesListScreen(viewModel: MainViewModel) {
                      if (displayedItems.isNotEmpty()) {
                          coroutineScope.launch {
                              isGeneratingPdf = true
-                             PdfGenerator.generateConsolidatedReport(context, displayedItems)
+                             PdfGenerator.generateConsolidatedReport(context, displayedItems, ShiftManager.getCurrentShiftInfo())
                              isGeneratingPdf = false
                          }
                      } else {
@@ -930,6 +1095,43 @@ fun ServicesListScreen(viewModel: MainViewModel) {
                     FilterChip(selected = (filterMode == "DAY"), onClick = { filterMode = "DAY" }, label = { Text("Dia") })
                     FilterChip(selected = (filterMode == "WEEK"), onClick = { filterMode = "WEEK" }, label = { Text("Semana") })
                     FilterChip(selected = (filterMode == "RANGE"), onClick = { filterMode = "RANGE" }, label = { Text("Período") })
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(onClick = {
+                        filterMode = "RANGE"
+                        val now = System.currentTimeMillis()
+                        rangeEndMillis = now
+                        rangeStartMillis = now - 7L * 24 * 60 * 60 * 1000
+                    }, modifier = Modifier.weight(1f)) {
+                        Text("Últimos 7 dias")
+                    }
+                    OutlinedButton(onClick = {
+                        filterMode = "RANGE"
+                        val now = System.currentTimeMillis()
+                        rangeEndMillis = now
+                        rangeStartMillis = now - 30L * 24 * 60 * 60 * 1000
+                    }, modifier = Modifier.weight(1f)) {
+                        Text("Últimos 30 dias")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                    Text("${displayedItems.size} serviços encontrados", style = MaterialTheme.typography.bodySmall)
+                    TextButton(onClick = {
+                        filterMode = "CURRENT"
+                        selectedDateMillis = System.currentTimeMillis()
+                        rangeStartMillis = System.currentTimeMillis()
+                        rangeEndMillis = System.currentTimeMillis()
+                        searchQuery = ""
+                        shift1 = true; shift2 = true; shift3 = true
+                    }) {
+                        Text("Limpar filtros")
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -1167,7 +1369,7 @@ fun EditServiceDialog(
                                 AsyncImage(
                                     model = photoPath,
                                     contentDescription = null,
-                                    modifier = Modifier.fillMaxSize().clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp)),
+                                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)),
                                     contentScale = ContentScale.Crop
                                 )
                                 // Botão Remover
