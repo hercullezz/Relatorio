@@ -1043,7 +1043,17 @@ fun ServicesListScreen(viewModel: MainViewModel) {
                      if (displayedItems.isNotEmpty()) {
                          coroutineScope.launch {
                              isGeneratingPdf = true
-                             PdfGenerator.generateConsolidatedReport(context, displayedItems, ShiftManager.getCurrentShiftInfo())
+                             val shiftInfoForPdf = when (filterMode) {
+                                 "CURRENT" -> ShiftManager.getCurrentShiftInfo()
+                                 "DAY" -> if (selectedShifts.size == 1) {
+                                     val selectedShiftId = selectedShifts.first()
+                                     val workDateMillis = Instant.ofEpochMilli(selectedDateMillis).atZone(ZoneId.systemDefault())
+                                         .toLocalDate().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                                     ShiftManager.getShiftInfoForShiftIdAndWorkDate(selectedShiftId, workDateMillis)
+                                 } else null
+                                 else -> null
+                             }
+                             PdfGenerator.generateConsolidatedReport(context, displayedItems, shiftInfoForPdf)
                              isGeneratingPdf = false
                          }
                      } else {
