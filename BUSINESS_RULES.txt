@@ -1,0 +1,239 @@
+================================================================================
+                    REGRAS DE NEGÓCIO - SISTEMA DE RELATÓRIO
+                          Fábrica 24h / 3 Turnos
+================================================================================
+
+DATA CRIAÇÃO: 21 de março de 2026
+ÚLTIMA ATUALIZAÇÃO: 21 de março de 2026
+VERSÃO: 1.0
+
+================================================================================
+1. ESTRUTURA DE TURNOS
+================================================================================
+
+A fábrica funciona 24 horas por dia com 3 turnos:
+
+  Turno 1 (1º Turno):  05:00 - 13:40
+  Turno 2 (2º Turno):  13:20 - 22:00
+  Turno 3 (3º Turno):  21:30 - 05:20 (cruza meia-noite)
+
+OBSERVAÇÕES CRÍTICAS:
+- Há overlaps entre turnos (por questões de transição entre equipes)
+  → 13:20 - 13:40: Overlap turno 1 e 2 (20 minutos)
+  → 21:30 - 22:00: Overlap turno 2 e 3 (30 minutos)
+
+- O Turno 3 começa no dia anterior (21:30) e termina no dia seguinte (05:20)
+  → Exemplo: Um registro às 22:30 de 21 de março tem workDate = 21 de março
+  → Um registro às 02:00 de 22 de março tem workDate = 21 de março (mesmo turno 3)
+
+================================================================================
+2. USUÁRIOS E ACESSO
+================================================================================
+
+PERFIS:
+- Operário: Adiciona serviços comprovando trabalho realizado
+- Supervisor: Valida e aprova serviços
+- Administrador: Gerencia usuários, genera relatórios consolidados
+
+CONFIGURAÇÃO POR USUÁRIO:
+- Cada usuário possui um ShiftId configurado no servidor (campo "ShiftId")
+- O aplicativo consulta o shift do usuário logado via ParseUser
+- Se não houver configuração no servidor, usa a detecção de turno atual do dispositivo
+
+DISPOSITIVO COMPARTILHADO:
+- Um smartphone Android fica na fábrica sendo passado entre funcionários dos turnos
+- Múltiplos usuários podem usar o mesmo dispositivo durante o dia
+- Cada um loga com suas credenciais no Parse
+- O turno é determinado pelo usuário logado + hora atual
+
+
+================================================================================
+3. REGRAS DE ADIÇÃO DE SERVIÇOS
+================================================================================
+
+REGRA PRINCIPAL - Restrição por Turno:
+├─ Um usuário SÓ PODE adicionar serviços dentro do seu turno de trabalho
+├─ O aplicativo valida: shiftId do usuário = shiftId calculado da hora atual
+└─ Se houver tentativa fora do turno, o app deve avisar
+
+EXTENSÕES PERMITIDAS:
+
+A. HORA EXTRA (Até +1 hora após o término do turno):
+   ├─ Usuário pode continuar adicionando serviços até 1h após seu turno terminar
+   ├─ Exemplos:
+   │  ├─ Turno 1 (05:00-13:40) → pode adicionar até 14:40
+   │  ├─ Turno 2 (13:20-22:00) → pode adicionar até 23:00
+   │  └─ Turno 3 (21:30-05:20) → pode adicionar até 06:20
+   └─ Esses registros recebem uma flag "overtime=true"
+
+B. TURNO SEGUINTE (Sem tempo de adicionar no próprio turno):
+   ├─ Se o usuário não registrou no próprio turno, pode adicionar no turno seguinte
+   ├─ Mas DEVE indicar que é referente ao turno anterior
+   ├─ Exemplo:
+   │  ├─ Turno 1 não registrou um serviço
+   │  ├─ No Turno 2, pode adicionar com referência "Serviço do Turno 1"
+   │  └─ O registra manualmente o shiftId=1 (override)
+   └─ Esses registros DEVEM TER NOTA/COMENTÁRIO explicando o atraso
+
+C. GERAÇÃO DE PDF (Até +1 hora após o término do turno):
+   ├─ PDF só pode ser gerado enquanto o usuário está "seu turno + 1 hora"
+   ├─ Exemplo:
+   │  ├─ Turno 1: 05:00-13:40 → PDF até 14:40
+   │  ├─ Turno 2: 13:20-22:00 → PDF até 23:00
+   │  └─ Turno 3: 21:30-05:20 → PDF até 06:20
+   └─ Após esse período, apenas supervisores/admins podem gerar consolidados
+
+
+================================================================================
+4. DATA DE TRABALHO (WORK DATE)
+================================================================================
+
+DEFINIÇÃO:
+- A "workDate" é SEMPRE a data de início do turno (à meia-noite dessa data)
+- Usada para agrupar registros por turno/dia
+
+EXEMPLOS:
+- Turno 1: 05:00 (21 mar) → workDate = 21 de março (00:00)
+- Turno 2: 14:00 (21 mar) → workDate = 21 de março (00:00)
+- Turno 3: 02:00 (22 mar) → workDate = 21 de março (00:00) ← MESMO DO DIA ANTERIOR!
+- Turno 3: 21:30 (21 mar) → workDate = 21 de março (00:00)
+
+IMPLICAÇÕES:
+- Registros entre 00:00-05:00 pertencem ao turno 3 do dia anterior
+- Um PDF de 22 de março às 02:00 agrupa dados do Turno 3 que começou em 21 de março
+
+
+================================================================================
+5. SINCRONIZAÇÃO CLIENTE-SERVIDOR
+================================================================================
+
+DADOS ENVIADOS PARA SERVIDOR (Parse):
+Cada registro de "Serviço" contém:
+  ├─ shiftId: ID do turno (1, 2 ou 3)
+  ├─ workDate: Data de trabalho (data de início do turno)
+  ├─ type: Tipo de serviço (Corretiva, Preventiva, Informação, etc)
+  ├─ machine: Máquina/local
+  ├─ description: Descrição do serviço
+  ├─ photoUris: URLs de fotos do serviço
+  ├─ overtime: Boolean (se foi registrado na hora extra)
+  ├─ createdAt: Timestamp de criação no servidor
+  └─ userId: ID do Parse User que criou
+
+CONFLITOS POSSÍVEIS:
+- Se cliente calcula shiftId=2 mas servidor recebe shiftId=3 → LOG DE ERRO
+- Se timezone do cliente diferir do servidor → Possível desvio de data
+- Se workDate não corresponder ao shiftId → REJEITAR
+
+
+================================================================================
+6. GERAÇÃO DE RELATÓRIOS (PDF)
+================================================================================
+
+FILTROS:
+Ao gerar PDF, o usuário pode filtrar por:
+  ├─ Turno específico (1, 2 ou 3)
+  ├─ Intervalo de datas (workDate)
+  ├─ Tipo de serviço
+  └─ Máquina
+
+CONSOLIDAÇÃO:
+- Se há múltiplos turnos/datas: PDF consolidado com coluna "Data / Turno"
+- Se turno único/data única: PDF detalhado daquele turno
+- Fotos: Máximo 3 por serviço, com tratamento de erro se download falhar
+
+
+================================================================================
+7. TIMEOFONES E EDGE CASES
+================================================================================
+
+CASO 1: Overlap 13:20-13:40 (Turno 1 → 2)
+  Decisão: Priorizar o turno com hora de INÍCIO mais recente
+  → 13:30 pertence ao Turno 2 (iniciou 13:20, não 05:00)
+  
+CASO 2: Overlap 21:30-22:00 (Turno 2 → 3)
+  Decisão: Priorizar o turno com hora de INÍCIO mais recente
+  → 21:45 pertence ao Turno 3 (iniciou 21:30, não 13:20)
+
+CASO 3: Fora de qualquer turno (improvável)
+  Decisão: Usar Turno 1 como fallback com LOG DE ALERTA
+  → Se não conseguir determinar, assume 1º turno
+  → Operador DEVE revisar e corrigir manualmente
+
+CASO 4: Mudança de Timezone (Dispositivo muda de fuso horário)
+  Risco: workDate pode ficar incorreta
+  Ação: APP DEVE ALERTAR e sugerir sincronização com servidor
+
+
+================================================================================
+8. VALIDAÇÕES CRÍTICAS
+================================================================================
+
+AO ADICIONAR SERVIÇO:
+  ✓ Usuário logado tem ShiftId válido?
+  ✓ Hora atual está dentro de (seu turno) OU (seu turno + 1h)?
+  ✓ Descrição não está vazia?
+  ✓ Máquina selecionada existe no cadastro?
+  ✓ Se há fotos: todas conseguem fazer upload?
+  ✓ workDate corresponde ao seu turno calculado?
+
+AO GERAR PDF:
+  ✓ Usuário está em (seu turno) OU (seu turno + 1h)?
+  ✓ Há pelo menos 1 registro para esse filtro?
+  ✓ Todas as fotos conseguem ser renderizadas?
+
+AO REVISAR (Supervisor/Admin):
+  ✓ shiftId do registro é válido (1-3)?
+  ✓ workDate é compatível com shiftId?
+  ✓ Timestamp de criação é consistente?
+  ✓ Se há overtime: está na janela de +1h?
+
+
+================================================================================
+9. LOGGING E DEBUG
+================================================================================
+
+EVENTOS CRÍTICOS A REGISTRAR:
+  [WARN] Usuário fora do seu turno, tentou adicionar serviço
+  [WARN] Nenhum turno encontrado para hora $time, usando fallback Turno 1
+  [ERROR] Inconsistência: shiftId do cliente ≠ shiftId calculado
+  [ERROR] Falha ao fazer upload de foto $photoUri
+  [INFO] PDF gerado: $filename para $shiftId/$workDate
+  [WARN] Timezone mismatch: servidor=$serverTZ, cliente=$clientTZ
+
+CAMPOS DE DEBUG EM CADA REGISTRO:
+  └─ debugInfo: 
+     ├─ deviceTimezone
+     ├─ calculatedShift
+     ├─ userConfiguredShift
+     ├─ isOvertime
+     └─ notes
+
+
+================================================================================
+10. RESUMO - FLUXO IDEAL
+================================================================================
+
+1. Usuário loga no app → Parse valida credenciais
+2. App obtém ShiftId do usuário + calcula turno atual
+3. Se estiver em (seu turno) OU (seu turno + 1h) → UI habilita "Adicionar Serviço"
+4. Usuário preenche dados de serviço + tira fotos
+5. App envia para servidor:
+   ├─ shiftId (do usuário)
+   ├─ workDate (calculada)
+   ├─ type, machine, description, photos
+   └─ overtime (true se está fora de seu turno base)
+6. Servidor valida tudo
+7. Ao fim do turno (+1h), usuário gera PDF dos registros
+8. PDF agrupa por máquina, com fotos e descrições
+9. Supervisor/Admin revisam e consolidam conforme necessário
+
+================================================================================
+NOTAS FINAIS
+================================================================================
+
+- Este arquivo deve ser consultado antes de adicionar features de turno
+- Qualquer mudança nos horários dos turnos REQUER atualização deste documento
+- Testes DEVEM validar todos os edge cases citados
+- Implementação de logging é CRÍTICA para debug em produção
+
+================================================================================

@@ -1,0 +1,34 @@
+
+# Created by Studio
+.gradle
+.idea
+local.properties
+/build
+/captures
+.DS_Store
+*.apk
+*.ap_
+*.aab
+*.keystore
+*.hprof
+*~
+*.iml
+
+# Gradle
+.gradletasknamecache
+gradle-app.setting
+.gradle-root/
+build-cache/
+gradle-user-home/
+
+# Android
+gen/
+target/
+out/
+
+# VSCode
+.vscode/
+
+# Zips and other large files
+*.zip
+*.jar
