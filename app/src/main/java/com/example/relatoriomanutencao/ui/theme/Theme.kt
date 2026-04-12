@@ -11,27 +11,38 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = IndustrialPrimaryDark,
+    secondary = IndustrialSecondaryDark,
+    tertiary = IndustrialTertiaryDark,
+    background = IndustrialBackgroundDark,
+    surface = IndustrialSurfaceDark,
+    error = ErrorRed,
+    errorContainer = Color(0xFF7F1D1D),
+    onErrorContainer = Color(0xFFFEF2F2)
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+    primary = IndustrialPrimaryLight,
+    secondary = IndustrialSecondaryLight,
+    tertiary = IndustrialTertiaryLight,
+    background = IndustrialBackgroundLight,
+    surface = IndustrialSurfaceLight,
+    error = ErrorRed,
+    errorContainer = Color(0xFFFEE2E2),
+    onErrorContainer = Color(0xFF991B1B)
 )
 
 @Composable
 fun RelatorioManutencaoTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {

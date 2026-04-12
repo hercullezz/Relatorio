@@ -13,6 +13,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -37,6 +38,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
@@ -313,10 +315,15 @@ fun ManualEntryDialog(locations: List<String>, initialCode: String = "", isCodeR
 
 @Composable
 fun StockItemCard(item: StockItem, onConsumeClick: () -> Unit, onAddClick: () -> Unit) {
-    val cardColor = if (item.quantity > 0) Color(0xFF2E7D32) else Color.Gray
+    val cardColor = if (item.quantity > 0) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.secondary
     val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
     val context = LocalContext.current
-    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+    Card(
+        modifier = Modifier.fillMaxWidth().animateContentSize(), 
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = item.description, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
@@ -327,10 +334,10 @@ fun StockItemCard(item: StockItem, onConsumeClick: () -> Unit, onAddClick: () ->
                 if (item.address.isNotBlank()) Text("Local: ${item.address}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Card(colors = CardDefaults.cardColors(containerColor = cardColor), shape = RoundedCornerShape(8.dp)) {
-                    Box(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp).sizeIn(minWidth = 40.dp), contentAlignment = Alignment.Center) { Text(text = item.quantity.toString(), color = Color.White, fontWeight = FontWeight.Bold) }
+                Card(colors = CardDefaults.cardColors(containerColor = cardColor), shape = RoundedCornerShape(12.dp)) {
+                    Box(modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp).sizeIn(minWidth = 44.dp), contentAlignment = Alignment.Center) { Text(text = item.quantity.toString(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp) }
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 Row {
                     FilledTonalIconButton(onClick = onAddClick, colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = Color(0xFFE8F5E9), contentColor = Color(0xFF2E7D32)), modifier = Modifier.size(32.dp)) { Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp)) }
                     Spacer(modifier = Modifier.width(8.dp))
@@ -610,27 +617,51 @@ fun MaintenanceItemCard(item: MaintenanceItem, onDelete: () -> Unit, onEdit: () 
     
     val displayShiftId = item.shiftId ?: ShiftManager.getShiftInfo(Instant.ofEpochMilli(item.date)).shiftId
     
-    Card(elevation = CardDefaults.cardElevation(2.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(12.dp)) {
+    Card(
+        elevation = CardDefaults.cardElevation(4.dp), 
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth().animateContentSize()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(text = item.machine, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                 Row {
-                    IconButton(onClick = onEdit, modifier = Modifier.size(24.dp)) { Icon(Icons.Default.Edit, null, tint = Color.Gray) }
-                    IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) { Icon(Icons.Default.Delete, null, tint = Color.Red) }
+                    IconButton(onClick = onEdit, modifier = Modifier.size(24.dp).padding(end = 4.dp)) { Icon(Icons.Default.Edit, null, tint = MaterialTheme.colorScheme.secondary) }
+                    IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) }
                 }
             }
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = "T$displayShiftId - $workDateStr", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.width(8.dp))
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.padding(end = 8.dp)
+                ) {
+                    Text(
+                        text = "T$displayShiftId - $workDateStr", 
+                        style = MaterialTheme.typography.labelSmall, 
+                        color = MaterialTheme.colorScheme.onPrimaryContainer, 
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
                 if (!item.isSynced) {
-                    Icon(Icons.Default.CloudOff, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.error)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Pendente", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.errorContainer,
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
+                            Icon(Icons.Default.CloudOff, null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onErrorContainer)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Pendente", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onErrorContainer)
+                        }
+                    }
                 } else {
-                    Text(text = "adicionado às $timeString", style = MaterialTheme.typography.bodySmall)
+                    Text(text = "adicionado às $timeString", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                 }
             }
+            Spacer(modifier = Modifier.height(8.dp))
             Text(text = item.description, style = MaterialTheme.typography.bodyMedium)
         }
     }
