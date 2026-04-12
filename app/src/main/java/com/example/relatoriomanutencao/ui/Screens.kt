@@ -12,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -452,6 +453,11 @@ fun ServicesListScreen(viewModel: MainViewModel) {
                         itemShift == shift.shiftId && isSameDay(itemWorkDate, shift.workDate.time)
                     }
                 }
+                "PREVIOUS" -> {
+                    val prevShift = ShiftManager.getPreviousShiftInfo()
+                    val itemShift = item.shiftId ?: ShiftManager.getShiftInfo(Instant.ofEpochMilli(item.date)).shiftId
+                    itemShift == prevShift.shiftId && isSameDay(itemWorkDate, prevShift.workDate.time)
+                }
                 "DAY" -> {
                     val selectedShifts = mutableListOf<Int>()
                     if (shift1) selectedShifts.add(1)
@@ -501,7 +507,11 @@ fun ServicesListScreen(viewModel: MainViewModel) {
                                  if (shift2) selectedShifts.add(2)
                                  if (shift3) selectedShifts.add(3)
                                  if (selectedShifts.size == 1) ShiftManager.getShiftInfoForShiftIdAndWorkDate(selectedShifts[0], selectedDateMillis) else null
-                             } else if (filterMode == "CURRENT") ShiftManager.getCurrentShiftInfo() else null
+                             } else if (filterMode == "CURRENT") {
+                                 ShiftManager.getCurrentShiftInfo()
+                             } else if (filterMode == "PREVIOUS") {
+                                 ShiftManager.getPreviousShiftInfo()
+                             } else null
                              PdfGenerator.generateConsolidatedReport(context, displayedItems, shiftInfoForPdf)
                              isGeneratingPdf = false
                          }
@@ -518,8 +528,12 @@ fun ServicesListScreen(viewModel: MainViewModel) {
                  Spacer(modifier = Modifier.height(8.dp))
                  OutlinedTextField(value = searchQuery, onValueChange = { searchQuery = it }, label = { Text("Buscar serviço") }, modifier = Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Default.Search, null) })
                  Spacer(modifier = Modifier.height(8.dp))
-                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                 Row(
+                     modifier = Modifier.horizontalScroll(rememberScrollState()),
+                     horizontalArrangement = Arrangement.spacedBy(8.dp)
+                 ) {
                     FilterChip(selected = (filterMode == "CURRENT"), onClick = { filterMode = "CURRENT" }, label = { Text("Atual") })
+                    FilterChip(selected = (filterMode == "PREVIOUS"), onClick = { filterMode = "PREVIOUS" }, label = { Text("Anterior") })
                     FilterChip(selected = (filterMode == "DAY"), onClick = { filterMode = "DAY" }, label = { Text("Dia") })
                     FilterChip(selected = (filterMode == "RANGE"), onClick = { filterMode = "RANGE" }, label = { Text("Período") })
                  }
