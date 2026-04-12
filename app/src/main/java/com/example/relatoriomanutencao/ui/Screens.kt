@@ -540,6 +540,25 @@ fun ServicesListScreen(viewModel: MainViewModel) {
                  
                  Spacer(modifier = Modifier.height(8.dp))
 
+                 val unsyncedCount = allItems.count { !it.isSynced }
+                 if (unsyncedCount > 0) {
+                     Card(
+                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                         modifier = Modifier.fillMaxWidth().clickable { viewModel.syncPendingItems() }.padding(bottom = 8.dp)
+                     ) {
+                         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                             Icon(Icons.Default.CloudOff, contentDescription = "Offline", tint = MaterialTheme.colorScheme.onErrorContainer)
+                             Spacer(modifier = Modifier.width(8.dp))
+                             Text(
+                                 text = "$unsyncedCount serviço(s) aguardando envio. Toque para sincronizar.",
+                                 color = MaterialTheme.colorScheme.onErrorContainer,
+                                 style = MaterialTheme.typography.bodyMedium,
+                                 fontWeight = FontWeight.Bold
+                             )
+                         }
+                     }
+                 }
+
                  when (filterMode) {
                     "DAY" -> {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -604,7 +623,13 @@ fun MaintenanceItemCard(item: MaintenanceItem, onDelete: () -> Unit, onEdit: () 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(text = "T$displayShiftId - $workDateStr", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "adicionado às $timeString", style = MaterialTheme.typography.bodySmall)
+                if (!item.isSynced) {
+                    Icon(Icons.Default.CloudOff, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.error)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Pendente", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                } else {
+                    Text(text = "adicionado às $timeString", style = MaterialTheme.typography.bodySmall)
+                }
             }
             Text(text = item.description, style = MaterialTheme.typography.bodyMedium)
         }

@@ -12,16 +12,11 @@ data class MaintenanceItem(
     val serviceType: String = "",
     val description: String = "",
     val date: Long = 0,
-    val photoUris: String = "" 
-)
-
-{
-    @Ignore
-    var shiftId: Int? = null
-
-    @Ignore
+    val photoUris: String = "",
+    var isSynced: Boolean = true,
+    var shiftId: Int? = null,
     var workDateMillisFromServer: Long? = null
-}
+)
 
 @Entity(tableName = "stock_items")
 data class StockItem(

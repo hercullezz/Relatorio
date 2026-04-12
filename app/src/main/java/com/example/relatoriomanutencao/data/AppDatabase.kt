@@ -16,9 +16,18 @@ interface MaintenanceDao {
     @Query("SELECT * FROM maintenance_items ORDER BY date DESC")
     fun getAllMaintenanceItems(): Flow<List<MaintenanceItem>>
 
+    @Query("SELECT * FROM maintenance_items WHERE isSynced = 0 ORDER BY date DESC")
+    suspend fun getUnsyncedMaintenanceItemsSync(): List<MaintenanceItem>
+
+    @Query("UPDATE maintenance_items SET isSynced = 1 WHERE id = :id")
+    suspend fun markAsSynced(id: Long)
+
     @Insert
     suspend fun insertMaintenanceItem(item: MaintenanceItem): Long
     
+    @androidx.room.Update
+    suspend fun updateMaintenanceItem(item: MaintenanceItem)
+
     @Query("DELETE FROM maintenance_items WHERE id = :id")
     suspend fun deleteMaintenanceItem(id: Long)
 }
@@ -76,7 +85,7 @@ interface MachineDao {
     suspend fun deleteMachine(machine: Machine)
 }
 
-@Database(entities = [MaintenanceItem::class, StockItem::class, ProductionLine::class, Machine::class], version = 2, exportSchema = false)
+@Database(entities = [MaintenanceItem::class, StockItem::class, ProductionLine::class, Machine::class], version = 3, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun maintenanceDao(): MaintenanceDao
     abstract fun stockDao(): StockDao
