@@ -30,6 +30,9 @@ interface MaintenanceDao {
 
     @Query("DELETE FROM maintenance_items WHERE id = :id")
     suspend fun deleteMaintenanceItem(id: Long)
+
+    @Query("DELETE FROM maintenance_items WHERE isSynced = 1")
+    suspend fun clearSyncedMaintenanceItems()
 }
 
 @Dao
@@ -63,6 +66,9 @@ interface ProductionLineDao {
     @Insert
     suspend fun insertProductionLine(productionLine: ProductionLine): Long
 
+    @androidx.room.Update
+    suspend fun updateProductionLine(productionLine: ProductionLine)
+
     @Delete
     suspend fun deleteProductionLine(productionLine: ProductionLine)
 }
@@ -80,6 +86,9 @@ interface MachineDao {
 
     @Insert
     suspend fun insertMachine(machine: Machine): Long
+
+    @androidx.room.Update
+    suspend fun updateMachine(machine: Machine)
 
     @Delete
     suspend fun deleteMachine(machine: Machine)

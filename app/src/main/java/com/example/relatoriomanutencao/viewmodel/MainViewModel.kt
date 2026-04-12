@@ -396,6 +396,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun updateStockLocation(oldName: String, newName: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val query = ParseQuery.getQuery<ParseObject>("StockLocation").whereEqualTo("name", oldName)
+                query.find().forEach { 
+                    it.put("name", newName)
+                    it.save() 
+                }
+                fetchStockLocations()
+            } catch (e: Exception) { }
+        }
+    }
+
     fun deleteStockLocation(name: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -458,6 +471,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         } 
     }
 
+    fun updateProductionLine(oldName: String, newName: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try { machineConfigRepository.updateProductionLine(oldName, newName) } catch (e: Exception) { } finally { _isLoading.value = false }
+        }
+    }
+
     fun deleteProductionLine(productionLine: ProductionLine) { 
         viewModelScope.launch { 
             _isLoading.value = true
@@ -472,11 +492,34 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         } 
     }
 
+    fun updateMachine(oldName: String, newName: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try { machineConfigRepository.updateMachine(oldName, newName) } catch (e: Exception) { } finally { _isLoading.value = false }
+        }
+    }
+
     fun deleteMachine(machine: Machine) { 
         viewModelScope.launch { 
             _isLoading.value = true
             try { machineConfigRepository.deleteMachine(machine) } catch (e: Exception) { } finally { _isLoading.value = false }
         } 
+    }
+    
+    fun clearSyncedLocalData() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isLoading.value = true
+            try {
+                database.maintenanceDao().clearSyncedMaintenanceItems()
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(getApplication(), "Memória Local Otimizada", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Erro ao limpar cache local", e)
+            } finally {
+                _isLoading.value = false
+            }
+        }
     }
 
     suspend fun loadImagesForEditing(photoUris: String): List<Any> {

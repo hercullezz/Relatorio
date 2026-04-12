@@ -136,6 +136,24 @@ class MachineConfigurationRepository(
         syncFromCloud()
     }
 
+    suspend fun updateProductionLine(oldName: String, newName: String) {
+        withContext(Dispatchers.IO) {
+            try {
+                val query = ParseQuery.getQuery<ParseObject>(CLASS_LINE)
+                query.whereEqualTo("name", oldName)
+                val results = query.find()
+                for (obj in results) {
+                    obj.put("name", newName)
+                    obj.save()
+                }
+            } catch (e: Exception) {
+                Log.e("Back4App", "Error updating line", e)
+                throw e
+            }
+        }
+        syncFromCloud()
+    }
+
     suspend fun deleteProductionLine(productionLine: ProductionLine) {
         // Delete Cloud (Find by name)
         withContext(Dispatchers.IO) {
@@ -183,6 +201,24 @@ class MachineConfigurationRepository(
             }
         }
         // Sincroniza
+        syncFromCloud()
+    }
+
+    suspend fun updateMachine(oldName: String, newName: String) {
+        withContext(Dispatchers.IO) {
+            try {
+                val query = ParseQuery.getQuery<ParseObject>(CLASS_MACHINE)
+                query.whereEqualTo("name", oldName)
+                val results = query.find()
+                for (obj in results) {
+                    obj.put("name", newName)
+                    obj.save()
+                }
+            } catch (e: Exception) {
+                Log.e("Back4App", "Error updating machine", e)
+                throw e
+            }
+        }
         syncFromCloud()
     }
 
