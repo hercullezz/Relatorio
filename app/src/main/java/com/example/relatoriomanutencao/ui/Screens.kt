@@ -42,6 +42,8 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.example.relatoriomanutencao.data.MaintenanceItem
 import com.example.relatoriomanutencao.data.StockItem
 import com.example.relatoriomanutencao.utils.PdfGenerator
@@ -688,6 +690,7 @@ fun MaintenanceItemCard(item: MaintenanceItem, onDelete: () -> Unit, onEdit: () 
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditServiceDialog(item: MaintenanceItem, onDismiss: () -> Unit, onConfirm: (String, String) -> Unit) {
     var description by remember { mutableStateOf(item.description) }
@@ -695,35 +698,191 @@ fun EditServiceDialog(item: MaintenanceItem, onDismiss: () -> Unit, onConfirm: (
     val context = LocalContext.current
     val cameraUri = remember { mutableStateOf<Uri?>(null) }
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success -> if (success) cameraUri.value?.let { currentPhotos = currentPhotos + it.toString() } }
-    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris -> currentPhotos = currentPhotos + uris.map { it.toString() } }
-    AlertDialog(
+    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris -> 
+        val remainingSlots = 6 - currentPhotos.size
+        if (remainingSlots > 0) {
+            currentPhotos = currentPhotos + uris.take(remainingSlots).map { it.toString() }
+        }
+    }
+
+    Dialog(
         onDismissRequest = onDismiss,
-        title = { Text("Editar") },
-        text = {
-            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                OutlinedTextField(value = description, onValueChange = { description = it }, label = { Text("Descrição") }, modifier = Modifier.fillMaxWidth())
-                Row(modifier = Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                     Button(onClick = { 
-                         val file = File(context.getExternalFilesDir("photos"), "photo_${System.currentTimeMillis()}.jpg")
-                         val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
-                         cameraUri.value = uri
-                         cameraLauncher.launch(uri)
-                     }) { Text("Foto") }
-                     Button(onClick = { galleryLauncher.launch("image/*") }) { Text("Galeria") }
-                }
-                LazyRow(modifier = Modifier.padding(top = 8.dp)) {
-                    items(currentPhotos) { photo ->
-                        Box(modifier = Modifier.size(80.dp).padding(4.dp)) {
-                            AsyncImage(model = photo, contentDescription = null, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(4.dp)), contentScale = ContentScale.Crop)
-                            IconButton(onClick = { currentPhotos = currentPhotos - photo }, modifier = Modifier.align(Alignment.TopEnd).size(20.dp).background(Color.White, CircleShape)) {
-                                Icon(Icons.Default.Close, null, tint = Color.Red, modifier = Modifier.size(12.dp))
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp
+        ) {
+            Scaffold(
+                topBar = {
+                    CenterAlignedTopAppBar(
+                        title = {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("Editar Serviço", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Text(item.machine, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
                             }
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = onDismiss) {
+                                Icon(Icons.Default.Close, contentDescription = "Fechar")
+                            }
+                        },
+                        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                            containerColor = Color.Transparent
+                        )
+                    )
+                },
+                bottomBar = {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        tonalElevation = 8.dp,
+                        shadowElevation = 8.dp
+                    ) {
+                        Button(
+                            onClick = { onConfirm(description, currentPhotos.joinToString(",")) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                                .height(56.dp),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Icon(Icons.Default.Save, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Salvar Alterações", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
+            ) { padding ->
+                Column(
+                    modifier = Modifier
+                        .padding(padding)
+                        .padding(horizontal = 20.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Text("O que foi feito?", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = description,
+                        onValueChange = { description = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 120.dp),
+                        placeholder = { Text("Descreva o serviço realizado...") },
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    
+                    Spacer(modifier = Modifier.height(24.dp))
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Fotos do Serviço", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            modifier = Modifier.padding(start = 8.dp)
+                        ) {
+                            Text(
+                                text = "${currentPhotos.size}/6", 
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Button(
+                            onClick = { 
+                                val file = File(context.getExternalFilesDir("photos"), "photo_${System.currentTimeMillis()}.jpg")
+                                val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+                                cameraUri.value = uri
+                                cameraLauncher.launch(uri)
+                            },
+                            enabled = currentPhotos.size < 6,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer)
+                        ) {
+                            Icon(Icons.Default.AddAPhoto, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Câmera")
+                        }
+                        
+                        OutlinedButton(
+                            onClick = { galleryLauncher.launch("image/*") },
+                            enabled = currentPhotos.size < 6,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.Image, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Galeria")
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(20.dp))
+                    
+                    // Photos Grid
+                    if (currentPhotos.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(100.dp)
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(12.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Nenhuma foto anexada", color = MaterialTheme.colorScheme.outline, style = MaterialTheme.typography.bodySmall)
+                        }
+                    } else {
+                        currentPhotos.chunked(2).forEach { rowPhotos ->
+                            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                rowPhotos.forEach { photo ->
+                                    Box(modifier = Modifier.weight(1f).aspectRatio(1f)) {
+                                        Card(
+                                            modifier = Modifier.fillMaxSize(),
+                                            shape = RoundedCornerShape(16.dp),
+                                            elevation = CardDefaults.cardElevation(2.dp)
+                                        ) {
+                                            AsyncImage(
+                                                model = photo,
+                                                contentDescription = null,
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                        }
+                                        IconButton(
+                                            onClick = { currentPhotos = currentPhotos - photo },
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .padding(6.dp)
+                                                .size(28.dp)
+                                                .background(Color.White.copy(alpha = 0.9f), CircleShape)
+                                        ) {
+                                            Icon(Icons.Default.Close, null, tint = Color.Red, modifier = Modifier.size(16.dp))
+                                        }
+                                    }
+                                }
+                                if (rowPhotos.size == 1) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(32.dp))
+                }
             }
-        },
-        confirmButton = { Button(onClick = { onConfirm(description, currentPhotos.joinToString(",")) }) { Text("Salvar") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Sair") } }
-    )
+        }
+    }
 }
