@@ -44,7 +44,7 @@ import com.example.relatoriomanutencao.utils.ShiftManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NewMaintenanceScreen(viewModel: MainViewModel) {
+fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
     // Modo de entrada: 0 = Serviço, 1 = Gráfico
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val isGraphMode = selectedTabIndex == 1
@@ -476,6 +476,7 @@ fun NewMaintenanceScreen(viewModel: MainViewModel) {
                             if (!isGraphMode) {
                                 selectedMachine = null
                             }
+                            onBack()
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),

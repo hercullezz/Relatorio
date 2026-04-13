@@ -646,19 +646,40 @@ fun MaintenanceItemCard(item: MaintenanceItem, onDelete: () -> Unit, onEdit: () 
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
-                if (!item.isSynced) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.errorContainer,
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
-                            Icon(Icons.Default.CloudOff, null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onErrorContainer)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Pendente", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onErrorContainer)
+                when {
+                    item.isPendingDeletion -> {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.errorContainer,
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
+                                Icon(Icons.Default.DeleteSweep, null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.error)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Aguardando exclusão", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                            }
                         }
                     }
-                } else {
-                    Text(text = "adicionado às $timeString", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                    !item.isSynced || item.isPendingUpdate -> {
+                        val label = if (!item.isSynced) "Aguardando envio" else "Alteração pendente"
+                        val icon = if (!item.isSynced) Icons.Default.CloudUpload else Icons.Default.Sync
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
+                                Icon(icon, null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onTertiaryContainer)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onTertiaryContainer)
+                            }
+                        }
+                    }
+                    else -> {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.CloudDone, null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(text = "há $timeString", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                        }
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))

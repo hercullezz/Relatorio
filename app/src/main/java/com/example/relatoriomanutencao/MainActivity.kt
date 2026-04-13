@@ -203,7 +203,7 @@ fun MainApp(user: ParseUser, onLogout: () -> Unit) { // Recebe o usuário como p
             startDestination = "new",
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable("new") { NewMaintenanceScreen(viewModel) }
+            composable("new") { NewMaintenanceScreen(viewModel, onBack = { navController.popBackStack() }) }
             composable("services") { ServicesListScreen(viewModel) }
             composable("saved") { SavedReportsScreen() }
             composable("stock") { StockScreen(viewModel) }

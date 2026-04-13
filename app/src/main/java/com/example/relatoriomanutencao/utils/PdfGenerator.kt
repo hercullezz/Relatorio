@@ -124,38 +124,98 @@ object PdfGenerator {
             canvas.drawLine(MARGIN, yPosition, PAGE_WIDTH - MARGIN, yPosition, paintLine)
             yPosition += 20
 
-            val serviceItems = items.groupBy { it.machine }.toSortedMap()
-            serviceItems.forEach { (machineName, maintenanceList) ->
-                checkPageBreak(40f)
-                canvas.drawRect(MARGIN, yPosition - 12, PAGE_WIDTH - MARGIN, yPosition + 8, Paint().apply { color = Color.rgb(240, 240, 240) })
-                canvas.drawText(machineName, MARGIN + 5, yPosition, paintTextBold)
-                yPosition += 20
+            // --- GRÁFICOS NO TOPO ---
+            val graphItems = items.filter { it.serviceType == "Gráfico de Produção" }
+                .groupBy { it.machine }
+                .map { (_, list) -> list.maxByOrNull { it.date }!! }
+                .sortedBy { it.machine }
 
-                for (item in maintenanceList.reversed()) {
-                    val descLines = breakTextIntoLines(item.description, paintTextNormal, CONTENT_WIDTH - 20)
-                    val photoUris = item.photoUris.split(",").filter { it.isNotBlank() }.take(3)
-                    val photosRowHeight = if (photoUris.isNotEmpty()) 110f else 0f
-                    checkPageBreak(20f + (descLines.size * 12f) + photosRowHeight)
-
-                    canvas.drawText(item.serviceType.uppercase(), MARGIN + 10, yPosition, paintTextBold)
-                    yPosition += 12
-                    for (line in descLines) { canvas.drawText(line, MARGIN + 10, yPosition, paintTextNormal); yPosition += 12 }
-
-                    if (photoUris.isNotEmpty()) {
-                        yPosition += 5; var currentX = MARGIN + 10f
-                        for (uriString in photoUris) {
-                            val bitmap = getBitmapFromUrlOrUri(context, uriString)
-                            if (bitmap != null) {
-                                canvas.drawBitmap(bitmap, null, RectF(currentX, yPosition, currentX + 150f, yPosition + 100f), null)
-                                bitmap.recycle()
-                            }
-                            currentX += 160f
-                        }
-                        yPosition += 110f
+            if (graphItems.isNotEmpty()) {
+                checkPageBreak(30f)
+                val paintBoldCenter = Paint().apply { textSize = 15f; typeface = Typeface.DEFAULT_BOLD; color = Color.rgb(0, 84, 166); textAlign = Paint.Align.CENTER }
+                canvas.drawText("GRÁFICOS DE PRODUÇÃO", PAGE_WIDTH / 2f, yPosition, paintBoldCenter)
+                yPosition += 25
+                
+                val graphHeight = 150f
+                val gap = 15f
+                val graphWidth = (CONTENT_WIDTH - gap) / 2f
+                val titleHeight = 15f
+                
+                graphItems.chunked(2).forEach { rowItems ->
+                    checkPageBreak(graphHeight + titleHeight + 20f)
+                    if (rowItems.size == 1) {
+                        val xStart = MARGIN + (CONTENT_WIDTH - graphWidth) / 2f
+                        drawChart(canvas, rowItems[0], xStart, yPosition, graphWidth, graphHeight, paintTextBold, context)
+                    } else {
+                        drawChart(canvas, rowItems[0], MARGIN, yPosition, graphWidth, graphHeight, paintTextBold, context)
+                        drawChart(canvas, rowItems[1], MARGIN + graphWidth + gap, yPosition, graphWidth, graphHeight, paintTextBold, context)
                     }
-                    yPosition += 8
+                    yPosition += graphHeight + titleHeight + 20f
                 }
-                yPosition += 10
+                canvas.drawLine(MARGIN, yPosition, PAGE_WIDTH - MARGIN, yPosition, paintLine)
+                yPosition += 25f
+            }
+
+            // Agrupamento por Linha -> Máquina
+            val lineGroups = items.filter { it.serviceType != "Gráfico de Produção" }
+                .groupBy { parseMachineName(it.machine).first }
+                .toSortedMap()
+
+            lineGroups.forEach { (lineName, machines) ->
+                // Header da Linha (Italac Blue)
+                checkPageBreak(40f)
+                val paintLineHeader = Paint().apply { color = Color.rgb(0, 84, 166) }
+                canvas.drawRect(MARGIN - 5, yPosition - 15, PAGE_WIDTH - MARGIN + 5, yPosition + 10, paintLineHeader)
+                val paintLineText = Paint().apply { textSize = 12f; typeface = Typeface.DEFAULT_BOLD; color = Color.WHITE }
+                canvas.drawText(lineName.uppercase(), MARGIN + 5, yPosition, paintLineText)
+                yPosition += 30
+
+                val machinesGrouped = machines.groupBy { parseMachineName(it.machine).second }.toSortedMap()
+                
+                machinesGrouped.forEach { (machineOnly, maintenanceList) ->
+                    checkPageBreak(30f)
+                    val paintMachineHeader = Paint().apply { color = Color.rgb(245, 245, 245) }
+                    canvas.drawRect(MARGIN, yPosition - 12, PAGE_WIDTH - MARGIN, yPosition + 8, paintMachineHeader)
+                    canvas.drawText("MÁQUINA: $machineOnly", MARGIN + 5, yPosition, paintTextBold)
+                    yPosition += 25
+
+                    for (item in maintenanceList.reversed()) {
+                        val descLines = breakTextIntoLines(item.description, paintTextNormal, CONTENT_WIDTH - 20)
+                        val photoUris = item.photoUris.split(",").filter { it.isNotBlank() }.take(3)
+                        val photosRowHeight = if (photoUris.isNotEmpty()) 120f else 0f
+                        checkPageBreak(30f + (descLines.size * 12f) + photosRowHeight)
+
+                        // Tipo de Serviço com destaque (Italac Red)
+                        val paintType = Paint().apply { textSize = 9f; typeface = Typeface.DEFAULT_BOLD; color = Color.rgb(238, 28, 37) }
+                        canvas.drawText(item.serviceType.uppercase(), MARGIN + 10, yPosition, paintType)
+                        yPosition += 14
+                        
+                        for (line in descLines) { 
+                            canvas.drawText(line, MARGIN + 10, yPosition, paintTextNormal)
+                            yPosition += 12 
+                        }
+
+                        if (photoUris.isNotEmpty()) {
+                            yPosition += 8; var currentX = MARGIN + 10f
+                            val photoWidth = 150f
+                            val photoHeight = 110f
+                            for (uriString in photoUris) {
+                                val bitmap = getBitmapFromUrlOrUri(context, uriString)
+                                if (bitmap != null) {
+                                    canvas.drawBitmap(bitmap, null, RectF(currentX, yPosition, currentX + photoWidth, yPosition + photoHeight), null)
+                                    bitmap.recycle()
+                                }
+                                currentX += photoWidth + 15f
+                            }
+                            yPosition += photoHeight + 10f
+                        }
+                        yPosition += 5
+                        canvas.drawLine(MARGIN + 10, yPosition, PAGE_WIDTH - MARGIN - 10, yPosition, Paint().apply { color = Color.rgb(240, 240, 240); strokeWidth = 0.5f })
+                        yPosition += 15
+                    }
+                    yPosition += 5
+                }
+                yPosition += 15
             }
 
             drawFooter(canvas, pageNumber)
@@ -168,6 +228,34 @@ object PdfGenerator {
             } catch (e: IOException) {
                 withContext(Dispatchers.Main) { Toast.makeText(context, "Erro: ${e.message}", Toast.LENGTH_SHORT).show() }
             } finally { document.close() }
+        }
+    }
+
+    private fun parseMachineName(fullName: String): Pair<String, String> {
+        val parts = fullName.split(" - ", " / ")
+        return if (parts.size >= 2) {
+            Pair(parts[0].trim(), parts[1].trim())
+        } else {
+            Pair("Geral", fullName.trim())
+        }
+    }
+
+    private fun drawChart(canvas: android.graphics.Canvas, item: MaintenanceItem, x: Float, y: Float, w: Float, h: Float, paint: Paint, context: Context) {
+        val rawName = item.machine.replace("LINHA ", "", ignoreCase = true).trim()
+        val cleanName = if (rawName.all { it.isDigit() }) "Linha $rawName" else rawName
+        
+        val oldAlign = paint.textAlign
+        paint.textAlign = Paint.Align.CENTER
+        canvas.drawText(cleanName, x + (w / 2f), y + 10f, paint)
+        paint.textAlign = oldAlign
+        
+        val photoUri = item.photoUris.split(",").firstOrNull { it.isNotBlank() }
+        if (photoUri != null) {
+            val bitmap = getBitmapFromUrlOrUri(context, photoUri)
+            if (bitmap != null) {
+                canvas.drawBitmap(bitmap, null, RectF(x, y + 15f, x + w, y + 15f + h), null)
+                bitmap.recycle()
+            }
         }
     }
 

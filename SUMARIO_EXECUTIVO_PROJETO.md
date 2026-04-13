@@ -347,6 +347,35 @@ FILTRO:
 
 ---
 
+## 📄 DIRETRIZES DE DESIGN DE RELATÓRIOS (PDF)
+
+Esta seção documenta as preferências e regras de layout para a geração automática de relatórios PDF, garantindo consistência e clareza para os destinatários (outros turnos, gestores e diretoria).
+
+### 🎯 Propósito do Relatório
+- **Comunicação Inter-Turnos**: Informar as equipes seguintes sobre o ocorrido.
+- **Transparência Gerencial**: Manter gestores e superiores cientes das atividades e problemas.
+- **Histórico e Auditoria**: Servir como registro oficial para consulta em caso de falhas no processo.
+
+### 📝 Conteúdo Obrigatório
+- Serviços realizados e informações detalhadas.
+- Identificação clara das máquinas e linhas de produção.
+- Fotos e evidências visuais das manutenções.
+- Gráficos de produção recentes.
+
+### 🎨 Regras de Layout e Estilo (UI/UX do PDF)
+1. **Seção de Gráficos (Topo)**:
+   - Título centralizado: **GRÁFICOS DE PRODUÇÃO**.
+   - **Remover Redundância**: Não repetir a palavra "Linha" se o nome da linha já a contiver (ex: Usar "Linha 1" em vez de "LINHA Linha 1").
+   - **Identificação Individual**: Cada gráfico deve ter o nome da sua linha centralizado no topo da imagem.
+   - **Grid**: Dispor imagens lado a lado (2 colunas) para otimizar espaço.
+2. **Seção de Serviços (Corpo)**:
+   - **Agrupamento por Linha**: Agrupar serviços por Linha de Produção.
+   - **Destaque Visual**: Usar cabeçalhos de Linha com cor de fundo (ex: Azul Marinho) e texto contrastante.
+   - **Nomes de Máquina**: Dentro de uma seção de Linha, exibir apenas o nome da Máquina (ex: "Extrusora 01" em vez de "Linha 1 - Extrusora 01").
+   - **Fotos**: Organizar de forma coerente e compacta, facilitando a visualização rápida.
+
+---
+
 ## 🚀 ROADMAP DE IMPLEMENTAÇÃO
 
 ### **Fase 1: Estrutura Base** (Semana 1)

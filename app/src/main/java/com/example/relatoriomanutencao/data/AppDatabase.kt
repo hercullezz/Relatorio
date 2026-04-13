@@ -16,13 +16,13 @@ interface MaintenanceDao {
     @Query("SELECT * FROM maintenance_items ORDER BY date DESC")
     fun getAllMaintenanceItems(): Flow<List<MaintenanceItem>>
 
-    @Query("SELECT * FROM maintenance_items WHERE isSynced = 0 ORDER BY date DESC")
-    suspend fun getUnsyncedMaintenanceItemsSync(): List<MaintenanceItem>
+    @Query("SELECT * FROM maintenance_items WHERE isSynced = 0 OR isPendingUpdate = 1 OR isPendingDeletion = 1 ORDER BY date DESC")
+    suspend fun getPendingSyncItemsSync(): List<MaintenanceItem>
 
-    @Query("UPDATE maintenance_items SET isSynced = 1 WHERE id = :id")
-    suspend fun markAsSynced(id: Long)
+    @Query("UPDATE maintenance_items SET isSynced = 1, isPendingUpdate = 0, isPendingDeletion = 0, objectId = :objectId WHERE id = :id")
+    suspend fun markAsSynced(id: Long, objectId: String)
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMaintenanceItem(item: MaintenanceItem): Long
     
     @androidx.room.Update
@@ -31,7 +31,7 @@ interface MaintenanceDao {
     @Query("DELETE FROM maintenance_items WHERE id = :id")
     suspend fun deleteMaintenanceItem(id: Long)
 
-    @Query("DELETE FROM maintenance_items WHERE isSynced = 1")
+    @Query("DELETE FROM maintenance_items WHERE isSynced = 1 AND isPendingUpdate = 0 AND isPendingDeletion = 0")
     suspend fun clearSyncedMaintenanceItems()
 }
 

@@ -123,15 +123,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun refreshMaintenanceList() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                // Fetch local unsynced items
-                val unsyncedItems = database.maintenanceDao().getUnsyncedMaintenanceItemsSync()
+                // 1. Busca itens locais que têm QUALQUER pendência (novo, editado ou deletado)
+                val pendingItems = database.maintenanceDao().getPendingSyncItemsSync()
+                val pendingObjectIds = pendingItems.mapNotNull { it.objectId }.toSet()
 
                 val query = ParseQuery.getQuery<ParseObject>("Servico")
                 query.orderByDescending("createdAt")
                 query.limit = 150
                 
                 val results = query.find()
-                val items = results.map { obj ->
+                val cloudItems = results.mapNotNull { obj ->
+                    // Se o item tem uma pendência local (ex: editado offline), ignoramos a versão da nuvem
+                    if (pendingObjectIds.contains(obj.objectId)) return@mapNotNull null
+
                     val allUrls = mutableListOf<String>()
                     obj.getList<ParseFile>("photos")?.mapNotNull { it.url }?.let { allUrls.addAll(it) }
                     obj.getList<String>("external_photos")?.let { allUrls.addAll(it) }
@@ -140,7 +144,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val workDateObj = obj.getDate("workDate")
 
                     MaintenanceItem(
-                        id = 0,
+                        id = 0, // Item vindo da nuvem temporariamente
                         machine = obj.getString("machine") ?: "",
                         serviceType = obj.getString("type") ?: "",
                         description = obj.getString("description") ?: "",
@@ -148,18 +152,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         photoUris = allUrls.joinToString(","),
                         isSynced = true,
                         shiftId = obj.getNumber("shiftId")?.toInt(),
-                        workDateMillisFromServer = workDateObj?.time
+                        workDateMillisFromServer = workDateObj?.time,
+                        objectId = obj.objectId
                     )
                 }
                 
-                // Unsynced items first, then synced items
-                _maintenanceItems.value = unsyncedItems + items
+                // Itens pendentes primeiro, depois itens da nuvem
+                _maintenanceItems.value = pendingItems + cloudItems
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Erro ao buscar serviços na nuvem: ${e.message}")
-                // Se falhou por falta de internet, apenas listamos do banco local como fallback para os offline
-                val unsyncedItems = database.maintenanceDao().getUnsyncedMaintenanceItemsSync()
-                val currentItems = _maintenanceItems.value.filter { it.isSynced }
-                _maintenanceItems.value = unsyncedItems + currentItems 
+                // Fallback: mostra tudo o que tiver no banco local + o que já tínhamos em memória
+                val pendingItems = database.maintenanceDao().getPendingSyncItemsSync()
+                val currentSynced = _maintenanceItems.value.filter { it.isSynced && !it.isPendingUpdate && !it.isPendingDeletion }
+                _maintenanceItems.value = (pendingItems + currentSynced).distinctBy { it.objectId ?: it.date }
             }
         }
     }
@@ -173,53 +178,55 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         overrideWorkDateMillis: Long? = null
     ) {
         viewModelScope.launch(Dispatchers.IO) {
+            // No UI bloqueamos apenas o tempo de salvar no banco local (milisegundos)
             _isLoading.value = true
             try {
-                // 1. Validar Data/Turno
                 val shiftIdToSave = overrideShiftId ?: ShiftManager.getCurrentShiftInfo().shiftId
                 val workDateMillisToSave = overrideWorkDateMillis ?: ShiftManager.getCurrentShiftInfo().workDate.time
                 val nowMillis = Date().time
 
-                // 2. Salvar Localmente Primeiro
                 val localItem = MaintenanceItem(
                     machine = machine,
                     serviceType = serviceType,
                     description = description,
                     photoUris = photoUris,
                     date = nowMillis,
-                    isSynced = false,
+                    isSynced = false, // Pendente de adição
                     shiftId = shiftIdToSave,
                     workDateMillisFromServer = workDateMillisToSave
                 )
                 val localId = database.maintenanceDao().insertMaintenanceItem(localItem)
                 
-                withContext(Dispatchers.Main) { refreshMaintenanceList() }
+                // Libera a UI IMEDIATAMENTE após o save local
+                withContext(Dispatchers.Main) { 
+                    _isLoading.value = false 
+                    refreshMaintenanceList()
+                }
 
-                // 3. Tentar Enviar p/ Nuvem
-                val uploadedUrls = uploadPhotosToCloudinary(photoUris)
-                val serviceObject = ParseObject("Servico")
-                serviceObject.put("machine", machine)
-                serviceObject.put("type", serviceType)
-                serviceObject.put("description", description)
-                serviceObject.put("timestampLocal", Date(nowMillis))
-                serviceObject.put("shiftId", shiftIdToSave)
-                serviceObject.put("workDate", Date(workDateMillisToSave))
-                
-                if (uploadedUrls.isNotEmpty()) serviceObject.put("external_photos", uploadedUrls)
-                serviceObject.save() // LANÇA EXCEPTION SE SEM REDE
+                // --- Tentar Sincronismo em Background ---
+                try {
+                    val uploadedUrls = uploadPhotosToCloudinary(photoUris)
+                    val serviceObject = ParseObject("Servico")
+                    serviceObject.put("machine", machine)
+                    serviceObject.put("type", serviceType)
+                    serviceObject.put("description", description)
+                    serviceObject.put("timestampLocal", Date(nowMillis))
+                    serviceObject.put("shiftId", shiftIdToSave)
+                    serviceObject.put("workDate", Date(workDateMillisToSave))
+                    
+                    if (uploadedUrls.isNotEmpty()) serviceObject.put("external_photos", uploadedUrls)
+                    serviceObject.save()
 
-                // 4. Sucesso: Marca como Sincronizado
-                database.maintenanceDao().markAsSynced(localId)
-
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(getApplication(), "Salvo!", Toast.LENGTH_SHORT).show()
-                    refreshMaintenanceList() 
+                    // Sucesso: Marca como Sincronizado e armazena o objectId
+                    database.maintenanceDao().markAsSynced(localId, serviceObject.objectId)
+                    withContext(Dispatchers.Main) { refreshMaintenanceList() }
+                } catch (e: Exception) {
+                    Log.d("MainViewModel", "Adicionado localmente. Sync pendente: ${e.message}")
                 }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) { 
-                    Toast.makeText(getApplication(), "Salvo local. Aguardando conexão.", Toast.LENGTH_LONG).show() 
-                }
-            } finally { _isLoading.value = false }
+                Log.e("MainViewModel", "Erro ao salvar local: ${e.message}")
+                withContext(Dispatchers.Main) { _isLoading.value = false }
+            }
         }
     }
     
@@ -227,32 +234,54 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
             try {
-                if (!originalItem.isSynced) {
-                    val updatedLocal = originalItem.copy(description = newDescription, photoUris = newPhotoUris)
-                    database.maintenanceDao().updateMaintenanceItem(updatedLocal)
-                    withContext(Dispatchers.Main) { refreshMaintenanceList() }
-                    _isLoading.value = false
-                    return@launch
+                // 1. Atualizar Localmente Primeiro
+                val updatedItem = originalItem.copy(
+                    description = newDescription, 
+                    photoUris = newPhotoUris,
+                    isPendingUpdate = originalItem.isSynced // Se já era sincronizado, agora está pendente de update
+                )
+                
+                if (originalItem.id == 0L && originalItem.objectId != null) {
+                    // Item vindo da nuvem que ainda não estava no banco local
+                    database.maintenanceDao().insertMaintenanceItem(updatedItem)
+                } else {
+                    database.maintenanceDao().updateMaintenanceItem(updatedItem)
                 }
 
-                val query = ParseQuery.getQuery<ParseObject>("Servico")
-                query.whereEqualTo("machine", originalItem.machine)
-                query.whereEqualTo("description", originalItem.description)
-                val results = query.find()
-                if (results.isNotEmpty()) {
-                    val parseObject = results.minByOrNull { abs(it.createdAt.time - originalItem.date) }
-                    if (parseObject != null) {
-                        parseObject.put("description", newDescription)
-                        val allUris = newPhotoUris.split(",").filter { it.isNotBlank() }
-                        val existingLinks = allUris.filter { it.startsWith("http") }
-                        val newLocalUris = allUris.filter { !it.startsWith("http") }
-                        val newUploadedUrls = uploadPhotosToCloudinary(newLocalUris.joinToString(","))
-                        parseObject.put("external_photos", existingLinks.filter { !it.contains("back4app") } + newUploadedUrls)
-                        parseObject.save()
-                        withContext(Dispatchers.Main) { refreshMaintenanceList() }
-                    }
+                withContext(Dispatchers.Main) { 
+                    _isLoading.value = false 
+                    refreshMaintenanceList() 
                 }
-            } catch (e: Exception) { } finally { _isLoading.value = false }
+
+                // 2. Tentar Sincronismo
+                val objId = originalItem.objectId
+                if (objId != null) {
+                    val query = ParseQuery.getQuery<ParseObject>("Servico")
+                    val parseObject = query.get(objId) // Busca direta pelo ID é mais segura
+                    
+                    parseObject.put("description", newDescription)
+                    
+                    val allUris = newPhotoUris.split(",").filter { it.isNotBlank() }
+                    val existingLinks = allUris.filter { it.startsWith("http") }
+                    val newLocalUris = allUris.filter { !it.startsWith("http") }
+                    val newUploadedUrls = uploadPhotosToCloudinary(newLocalUris.joinToString(","))
+                    
+                    parseObject.put("external_photos", existingLinks.filter { !it.contains("back4app") } + newUploadedUrls)
+                    parseObject.save()
+
+                    // Sucesso: Marca como Sincronizado novamente
+                    val finalId = if (originalItem.id == 0L) {
+                        // Precisamos achar o ID que o Room gerou no insert anterior
+                        database.maintenanceDao().getPendingSyncItemsSync().find { it.objectId == objId }?.id ?: 0L
+                    } else originalItem.id
+                    
+                    if (finalId != 0L) database.maintenanceDao().markAsSynced(finalId, objId)
+                    withContext(Dispatchers.Main) { refreshMaintenanceList() }
+                }
+            } catch (e: Exception) {
+                Log.d("MainViewModel", "Update salvo localmente: ${e.message}")
+                withContext(Dispatchers.Main) { _isLoading.value = false }
+            }
         }
     }
     
@@ -270,20 +299,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 if (!item.isSynced) {
+                    // Se nunca foi pra nuvem, deleta direto
                     database.maintenanceDao().deleteMaintenanceItem(item.id)
                     withContext(Dispatchers.Main) { refreshMaintenanceList() }
                     return@launch
                 }
 
-                val query = ParseQuery.getQuery<ParseObject>("Servico")
-                query.whereEqualTo("machine", item.machine)
-                query.whereEqualTo("description", item.description)
-                val result = query.find()
-                if (result.isNotEmpty()) {
-                    result.minByOrNull { abs(it.createdAt.time - item.date) }?.delete()
+                // Se já estava na nuvem, marca como pendente de deleção localmente
+                val pendingDelete = item.copy(isPendingDeletion = true)
+                if (item.id == 0L) database.maintenanceDao().insertMaintenanceItem(pendingDelete)
+                else database.maintenanceDao().updateMaintenanceItem(pendingDelete)
+                
+                withContext(Dispatchers.Main) { refreshMaintenanceList() }
+
+                // Tenta deletar na nuvem
+                val objId = item.objectId
+                if (objId != null) {
+                    ParseObject.createWithoutData("Servico", objId).delete()
+                    // Sucesso: Remove do banco local definitivamente
+                    val finalId = database.maintenanceDao().getPendingSyncItemsSync().find { it.objectId == objId }?.id ?: item.id
+                    database.maintenanceDao().deleteMaintenanceItem(finalId)
                     withContext(Dispatchers.Main) { refreshMaintenanceList() }
                 }
-            } catch (e: Exception) { }
+            } catch (e: Exception) {
+                Log.d("MainViewModel", "Deleção marcada para depois: ${e.message}")
+            }
         }
     }
     
@@ -291,22 +331,52 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
             try {
-                val unsynced = database.maintenanceDao().getUnsyncedMaintenanceItemsSync()
-                for (item in unsynced) {
+                val pending = database.maintenanceDao().getPendingSyncItemsSync()
+                for (item in pending) {
                     try {
-                        val uploadedUrls = uploadPhotosToCloudinary(item.photoUris)
-                        val serviceObject = ParseObject("Servico")
-                        serviceObject.put("machine", item.machine)
-                        serviceObject.put("type", item.serviceType)
-                        serviceObject.put("description", item.description)
-                        serviceObject.put("timestampLocal", Date(item.date))
-                        item.shiftId?.let { serviceObject.put("shiftId", it) }
-                        item.workDateMillisFromServer?.let { serviceObject.put("workDate", Date(it)) }
-                        
-                        if (uploadedUrls.isNotEmpty()) serviceObject.put("external_photos", uploadedUrls)
-                        serviceObject.save()
-                        
-                        database.maintenanceDao().markAsSynced(item.id)
+                        when {
+                            item.isPendingDeletion -> {
+                                val objId = item.objectId
+                                if (objId != null) {
+                                    ParseObject.createWithoutData("Servico", objId).delete()
+                                }
+                                database.maintenanceDao().deleteMaintenanceItem(item.id)
+                            }
+                            
+                            item.isPendingUpdate -> {
+                                val objId = item.objectId
+                                if (objId != null) {
+                                    val parseObject = ParseObject.createWithoutData("Servico", objId)
+                                    parseObject.put("description", item.description)
+                                    
+                                    val allUris = item.photoUris.split(",").filter { it.isNotBlank() }
+                                    val existingLinks = allUris.filter { it.startsWith("http") }
+                                    val newLocalUris = allUris.filter { !it.startsWith("http") }
+                                    val newUploadedUrls = uploadPhotosToCloudinary(newLocalUris.joinToString(","))
+                                    
+                                    parseObject.put("external_photos", existingLinks.filter { !it.contains("back4app") } + newUploadedUrls)
+                                    parseObject.save()
+                                    database.maintenanceDao().markAsSynced(item.id, objId)
+                                }
+                            }
+                            
+                            !item.isSynced -> {
+                                // Novo Item (Add)
+                                val uploadedUrls = uploadPhotosToCloudinary(item.photoUris)
+                                val serviceObject = ParseObject("Servico")
+                                serviceObject.put("machine", item.machine)
+                                serviceObject.put("type", item.serviceType)
+                                serviceObject.put("description", item.description)
+                                serviceObject.put("timestampLocal", Date(item.date))
+                                item.shiftId?.let { serviceObject.put("shiftId", it) }
+                                item.workDateMillisFromServer?.let { serviceObject.put("workDate", Date(it)) }
+                                
+                                if (uploadedUrls.isNotEmpty()) serviceObject.put("external_photos", uploadedUrls)
+                                serviceObject.save()
+                                
+                                database.maintenanceDao().markAsSynced(item.id, serviceObject.objectId)
+                            }
+                        }
                     } catch (e: Exception) {
                         Log.e("MainViewModel", "Erro ao sincronizar item ${item.id}: ${e.message}")
                     }

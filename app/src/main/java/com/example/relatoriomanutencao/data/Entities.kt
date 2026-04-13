@@ -15,7 +15,10 @@ data class MaintenanceItem(
     val photoUris: String = "",
     var isSynced: Boolean = true,
     var shiftId: Int? = null,
-    var workDateMillisFromServer: Long? = null
+    var workDateMillisFromServer: Long? = null,
+    val objectId: String? = null,
+    val isPendingUpdate: Boolean = false,
+    val isPendingDeletion: Boolean = false
 )
 
 @Entity(tableName = "stock_items")
