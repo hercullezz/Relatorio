@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -424,10 +425,11 @@ fun ServicesListScreen(viewModel: MainViewModel) {
     var shift2 by remember { mutableStateOf(true) }
     var shift3 by remember { mutableStateOf(true) }
 
-    var editingItem by remember { mutableStateOf<MaintenanceItem?>(null) }
     var itemToDelete by remember { mutableStateOf<MaintenanceItem?>(null) }
     var isGeneratingPdf by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+    
+    val editingItem by viewModel.itemToEdit.collectAsState()
 
     fun isSameDay(millisA: Long, millisB: Long): Boolean {
         val calA = Calendar.getInstance().apply { timeInMillis = millisA }
@@ -593,7 +595,7 @@ fun ServicesListScreen(viewModel: MainViewModel) {
                      Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Nenhum serviço encontrado.", color = Color.Gray) }
                  } else {
                      LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(bottom = 80.dp)) {
-                         items(displayedItems) { item -> MaintenanceItemCard(item = item, onDelete = { itemToDelete = item }, onEdit = { editingItem = item }) }
+                         items(displayedItems) { item -> MaintenanceItemCard(item = item, onDelete = { itemToDelete = item }, onEdit = { viewModel.setItemToEdit(item) }) }
                      }
                  }
              }
@@ -604,7 +606,7 @@ fun ServicesListScreen(viewModel: MainViewModel) {
              }
          }
      }
-     if (editingItem != null) EditServiceDialog(item = editingItem!!, onDismiss = { editingItem = null }, onConfirm = { newDesc, newPhotos -> viewModel.updateMaintenanceItem(editingItem!!, newDesc, newPhotos); editingItem = null })
+     if (editingItem != null) EditServiceDialog(item = editingItem!!, onDismiss = { viewModel.setItemToEdit(null) }, onConfirm = { newDesc, newPhotos -> viewModel.updateMaintenanceItem(editingItem!!, newDesc, newPhotos); viewModel.setItemToEdit(null) })
      if (itemToDelete != null) AlertDialog(onDismissRequest = { itemToDelete = null }, title = { Text("Excluir") }, text = { Text("Excluir este serviço?") }, confirmButton = { Button(onClick = { viewModel.deleteMaintenanceItem(itemToDelete!!); itemToDelete = null }) { Text("Excluir") } }, dismissButton = { TextButton(onClick = { itemToDelete = null }) { Text("Cancelar") } })
 }
 
@@ -696,8 +698,10 @@ fun EditServiceDialog(item: MaintenanceItem, onDismiss: () -> Unit, onConfirm: (
     var description by remember { mutableStateOf(item.description) }
     var currentPhotos by remember { mutableStateOf(if (item.photoUris.isNotBlank()) item.photoUris.split(",").filter { it.isNotBlank() } else emptyList()) }
     val context = LocalContext.current
-    val cameraUri = remember { mutableStateOf<Uri?>(null) }
-    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success -> if (success) cameraUri.value?.let { currentPhotos = currentPhotos + it.toString() } }
+    var cameraUri by rememberSaveable { mutableStateOf<Uri?>(null) }
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success: Boolean -> 
+        if (success) cameraUri?.let { uri -> currentPhotos = currentPhotos + uri.toString() } 
+    }
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris -> 
         val remainingSlots = 6 - currentPhotos.size
         if (remainingSlots > 0) {
@@ -804,9 +808,10 @@ fun EditServiceDialog(item: MaintenanceItem, onDismiss: () -> Unit, onConfirm: (
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Button(
                             onClick = { 
-                                val file = File(context.getExternalFilesDir("photos"), "photo_${System.currentTimeMillis()}.jpg")
+                                val storageDir = context.getExternalFilesDir("maintenance_photos")
+                                val file = File(storageDir, "photo_${System.currentTimeMillis()}.jpg")
                                 val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
-                                cameraUri.value = uri
+                                cameraUri = uri
                                 cameraLauncher.launch(uri)
                             },
                             enabled = currentPhotos.size < 6,

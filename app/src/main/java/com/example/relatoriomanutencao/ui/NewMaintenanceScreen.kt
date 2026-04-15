@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -78,12 +79,12 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
     val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).apply { timeZone = TimeZone.getTimeZone("America/Porto_Velho") }
 
     // Câmera e Galeria
-    val cameraUri = remember { mutableStateOf<Uri?>(null) }
+    var cameraUri by rememberSaveable { mutableStateOf<Uri?>(null) }
 
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-        if (success && cameraUri.value != null) {
+        if (success && cameraUri != null) {
             if (selectedImageUris.size < 3) {
-                selectedImageUris = selectedImageUris + cameraUri.value!!
+                selectedImageUris = selectedImageUris + cameraUri!!
             }
         }
     }
@@ -295,7 +296,7 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                     Button(
                         onClick = {
                             val uri = createImageUri()
-                            cameraUri.value = uri
+                            cameraUri = uri
                             cameraLauncher.launch(uri)
                         },
                         enabled = selectedImageUris.size < 3
