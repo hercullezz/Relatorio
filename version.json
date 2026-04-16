@@ -1,6 +1,6 @@
 {
-  "versionCode": 8,
-  "versionName": "1.7",
-  "downloadUrl": "https://github.com/hercullezz/Relatorio/releases/download/v1.7/app-v1.7-release.apk",
-  "releaseNotes": "Correção: Permissões e configuração de provider para download/instalação de APK."
+  "versionCode": 5,
+  "versionName": "1.5",
+  "downloadUrl": "https://github.com/hercullezz/Relatorio/releases/download/v1.5/app-v1.5-release.apk",
+  "releaseNotes": "Versão atual instalada no dispositivo."
 }
