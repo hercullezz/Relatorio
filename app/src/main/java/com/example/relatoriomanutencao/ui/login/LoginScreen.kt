@@ -78,7 +78,6 @@ fun LoginScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                // Header: Logo e Título
                 Surface(
                     modifier = Modifier.size(100.dp),
                     shape = CircleShape,
@@ -87,7 +86,7 @@ fun LoginScreen(
                     shadowElevation = 4.dp
                 ) {
                     Image(
-                        painter = painterResource(id = R.mipmap.ic_launcher),
+                        painter = painterResource(id = R.drawable.generated_app_icon),
                         contentDescription = "App Logo",
                         modifier = Modifier.padding(16.dp),
                         contentScale = ContentScale.Fit
