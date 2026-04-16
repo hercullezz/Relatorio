@@ -230,17 +230,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     
-    fun updateMaintenanceItem(originalItem: MaintenanceItem, newDescription: String, newPhotoUris: String) {
+    fun updateMaintenanceItem(
+        originalItem: MaintenanceItem,
+        newDescription: String,
+        newPhotoUris: String,
+        newShiftId: Int? = null,
+        newWorkDateMillis: Long? = null
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
             try {
                 // 1. Atualizar Localmente Primeiro
                 val updatedItem = originalItem.copy(
-                    description = newDescription, 
+                    description = newDescription,
                     photoUris = newPhotoUris,
+                    shiftId = newShiftId ?: originalItem.shiftId,
+                    workDateMillisFromServer = newWorkDateMillis ?: originalItem.workDateMillisFromServer,
                     isPendingUpdate = originalItem.isSynced // Se já era sincronizado, agora está pendente de update
                 )
-                
+
                 if (originalItem.id == 0L && originalItem.objectId != null) {
                     // Item vindo da nuvem que ainda não estava no banco local
                     database.maintenanceDao().insertMaintenanceItem(updatedItem)
@@ -248,33 +256,36 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     database.maintenanceDao().updateMaintenanceItem(updatedItem)
                 }
 
-                withContext(Dispatchers.Main) { 
-                    _isLoading.value = false 
-                    refreshMaintenanceList() 
+                withContext(Dispatchers.Main) {
+                    _isLoading.value = false
+                    refreshMaintenanceList()
                 }
 
                 // 2. Tentar Sincronismo
                 val objId = originalItem.objectId
                 if (objId != null) {
                     val query = ParseQuery.getQuery<ParseObject>("Servico")
-                    val parseObject = query.get(objId) // Busca direta pelo ID é mais segura
-                    
+                    val parseObject = query.get(objId)
+
                     parseObject.put("description", newDescription)
-                    
+
+                    // Atualiza turno e data de trabalho se foram alterados
+                    if (newShiftId != null) parseObject.put("shiftId", newShiftId)
+                    if (newWorkDateMillis != null) parseObject.put("workDate", java.util.Date(newWorkDateMillis))
+
                     val allUris = newPhotoUris.split(",").filter { it.isNotBlank() }
                     val existingLinks = allUris.filter { it.startsWith("http") }
                     val newLocalUris = allUris.filter { !it.startsWith("http") }
                     val newUploadedUrls = uploadPhotosToCloudinary(newLocalUris.joinToString(","))
-                    
+
                     parseObject.put("external_photos", existingLinks.filter { !it.contains("back4app") } + newUploadedUrls)
                     parseObject.save()
 
                     // Sucesso: Marca como Sincronizado novamente
                     val finalId = if (originalItem.id == 0L) {
-                        // Precisamos achar o ID que o Room gerou no insert anterior
                         database.maintenanceDao().getPendingSyncItemsSync().find { it.objectId == objId }?.id ?: 0L
                     } else originalItem.id
-                    
+
                     if (finalId != 0L) database.maintenanceDao().markAsSynced(finalId, objId)
                     withContext(Dispatchers.Main) { refreshMaintenanceList() }
                 }

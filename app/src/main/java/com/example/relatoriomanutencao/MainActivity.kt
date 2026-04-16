@@ -49,6 +49,10 @@ import com.example.relatoriomanutencao.ui.login.SignUpScreen
 import com.example.relatoriomanutencao.ui.theme.RelatorioManutencaoTheme
 import com.example.relatoriomanutencao.viewmodel.MainViewModel
 import com.parse.ParseUser
+import com.example.relatoriomanutencao.utils.UpdateManager
+import com.example.relatoriomanutencao.utils.UpdateInfo
+import com.example.relatoriomanutencao.ui.components.UpdateDialog
+import com.example.relatoriomanutencao.BuildConfig
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -59,6 +63,25 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    val updateManager = remember { UpdateManager(this@MainActivity) }
+                    var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
+                    
+                    LaunchedEffect(Unit) {
+                        // URL do JSON de versão no seu GitHub (Troque pelo seu link real)
+                        val jsonUrl = "https://raw.githubusercontent.com/hercullezz/Relatorio/master/version.json"
+                        val info = updateManager.checkForUpdates(jsonUrl)
+                        if (info != null && info.versionCode > BuildConfig.VERSION_CODE) {
+                            updateInfo = info
+                        }
+                    }
+
+                    if (updateInfo != null) {
+                        UpdateDialog(
+                            updateInfo = updateInfo!!,
+                            onUpdateClick = { updateManager.downloadAndInstall(updateInfo!!) }
+                        )
+                    }
+
                     AuthGate()
                 }
             }

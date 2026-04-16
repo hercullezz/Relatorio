@@ -606,7 +606,14 @@ fun ServicesListScreen(viewModel: MainViewModel) {
              }
          }
      }
-     if (editingItem != null) EditServiceDialog(item = editingItem!!, onDismiss = { viewModel.setItemToEdit(null) }, onConfirm = { newDesc, newPhotos -> viewModel.updateMaintenanceItem(editingItem!!, newDesc, newPhotos); viewModel.setItemToEdit(null) })
+     if (editingItem != null) EditServiceDialog(
+         item = editingItem!!,
+         onDismiss = { viewModel.setItemToEdit(null) },
+         onConfirm = { newDesc, newPhotos, newShiftId, newWorkDateMillis ->
+             viewModel.updateMaintenanceItem(editingItem!!, newDesc, newPhotos, newShiftId, newWorkDateMillis)
+             viewModel.setItemToEdit(null)
+         }
+     )
      if (itemToDelete != null) AlertDialog(onDismissRequest = { itemToDelete = null }, title = { Text("Excluir") }, text = { Text("Excluir este serviço?") }, confirmButton = { Button(onClick = { viewModel.deleteMaintenanceItem(itemToDelete!!); itemToDelete = null }) { Text("Excluir") } }, dismissButton = { TextButton(onClick = { itemToDelete = null }) { Text("Cancelar") } })
 }
 
@@ -694,9 +701,17 @@ fun MaintenanceItemCard(item: MaintenanceItem, onDelete: () -> Unit, onEdit: () 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditServiceDialog(item: MaintenanceItem, onDismiss: () -> Unit, onConfirm: (String, String) -> Unit) {
+fun EditServiceDialog(item: MaintenanceItem, onDismiss: () -> Unit, onConfirm: (String, String, Int?, Long?) -> Unit) {
     var description by remember { mutableStateOf(item.description) }
     var currentPhotos by remember { mutableStateOf(if (item.photoUris.isNotBlank()) item.photoUris.split(",").filter { it.isNotBlank() } else emptyList()) }
+
+    // Turno atual do item e turno anterior calculado
+    val itemShiftId = remember { item.shiftId ?: ShiftManager.getShiftInfo(java.time.Instant.ofEpochMilli(item.date)).shiftId }
+    val previousShift = remember { ShiftManager.getPreviousShiftInfo() }
+
+    // Controla qual turno está selecionado: null = mantém o original
+    var selectedShiftId by remember { mutableStateOf<Int?>(null) }
+    var selectedWorkDateMillis by remember { mutableStateOf<Long?>(null) }
     val context = LocalContext.current
     var cameraUri by rememberSaveable { mutableStateOf<Uri?>(null) }
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success: Boolean -> 
@@ -747,7 +762,7 @@ fun EditServiceDialog(item: MaintenanceItem, onDismiss: () -> Unit, onConfirm: (
                         shadowElevation = 8.dp
                     ) {
                         Button(
-                            onClick = { onConfirm(description, currentPhotos.joinToString(",")) },
+                            onClick = { onConfirm(description, currentPhotos.joinToString(","), selectedShiftId, selectedWorkDateMillis) },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp)
@@ -768,7 +783,7 @@ fun EditServiceDialog(item: MaintenanceItem, onDismiss: () -> Unit, onConfirm: (
                         .verticalScroll(rememberScrollState())
                 ) {
                     Spacer(modifier = Modifier.height(16.dp))
-                    
+
                     Text("O que foi feito?", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
@@ -780,7 +795,84 @@ fun EditServiceDialog(item: MaintenanceItem, onDismiss: () -> Unit, onConfirm: (
                         placeholder = { Text("Descreva o serviço realizado...") },
                         shape = RoundedCornerShape(12.dp)
                     )
-                    
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // --- Seletor de Turno ---
+                    Text("Turno do Serviço", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    val activeShift = selectedShiftId ?: itemShiftId
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // Botão: turno original do item
+                        FilterChip(
+                            selected = (activeShift == itemShiftId && selectedShiftId == null),
+                            onClick = {
+                                selectedShiftId = null
+                                selectedWorkDateMillis = null
+                            },
+                            label = {
+                                Text(
+                                    text = "T$itemShiftId — Atual",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            },
+                            leadingIcon = if (activeShift == itemShiftId && selectedShiftId == null) {
+                                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                            } else null,
+                            modifier = Modifier.weight(1f)
+                        )
+                        // Botão: turno anterior
+                        FilterChip(
+                            selected = (selectedShiftId == previousShift.shiftId),
+                            onClick = {
+                                selectedShiftId = previousShift.shiftId
+                                selectedWorkDateMillis = previousShift.workDate.time
+                            },
+                            label = {
+                                Text(
+                                    text = "T${previousShift.shiftId} — Anterior",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            },
+                            leadingIcon = if (selectedShiftId == previousShift.shiftId) {
+                                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                            } else null,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    if (selectedShiftId != null) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.tertiaryContainer
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.SwapHoriz,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "O serviço será movido para o ${previousShift.shiftName}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
+                            }
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(24.dp))
                     
                     Row(

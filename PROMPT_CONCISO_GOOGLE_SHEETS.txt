@@ -1,0 +1,201 @@
+# Prompt Conciso para Google Sheets
+## Copie e cole este texto direto em outra IA
+
+---
+
+## TAREFA
+Você será meu assistente para implementar um **Sistema de Relatório de Manutenção em Google Sheets** que replica a lógica de um aplicativo Android já existente.
+
+## CONTEXTO: O QUE FAZ O SISTEMA?
+
+É um sistema para uma **fábrica que funciona 24 horas com 3 turnos**:
+- **Turno 1**: 05:00 - 13:40
+- **Turno 2**: 13:20 - 22:00  
+- **Turno 3**: 21:30 - 05:20 (cruza meia-noite)
+
+**Operários registram serviços de manutenção** durante seus turnos. Supervisores aprovam os registros. Admins geram relatórios e gerenciam o sistema.
+
+## PROBLEMA CRÍTICO: TURNO 3 CRUZANDO MEIA-NOITE
+
+Um serviço registrado às **02:00 de 22/03** pertence ao **Turno 3 que começou em 21/03**, não ao dia 22/03.
+
+**Solução**: Usar **WorkDate** (Data de Trabalho) = sempre a data de INÍCIO do turno:
+- `SE Turno ∈ [1,2]: WorkDate = Dia Atual`
+- `SE Turno = 3 E Hora ∈ [21:30, 23:59]: WorkDate = Dia Atual`
+- `SE Turno = 3 E Hora ∈ [00:00, 05:20]: WorkDate = Dia Anterior`
+
+## TABELAS NECESSÁRIAS
+
+1. **SERVIÇOS_MANUTENÇÃO**: ID, UUID, USUÁRIO_ID, MÁQUINA, TIPO_SERVIÇO, DESCRIÇÃO, DATA_HORA_REGISTRO, WORK_DATE, TURNO_ID, É_HORA_EXTRA, FOTOS_URL, STATUS_APROVAÇÃO, SUPERVISOR, DATA_APROVAÇÃO, NOTAS, DELETADO
+
+2. **USUÁRIOS**: ID, NOME, EMAIL, TURNO_ID, PERFIL (Operário|Supervisor|Admin), STATUS
+
+3. **MÁQUINAS**: ID, NOME, LINHA_PRODUÇÃO_ID, STATUS, LOCALIZAÇÃO
+
+4. **LINHAS_PRODUÇÃO**: ID, NOME, DESCRIÇÃO
+
+5. **ESTOQUE**: ID, CÓDIGO, DESCRIÇÃO, LOCALIZAÇÃO, QUANTIDADE
+
+## REGRAS DE NEGÓCIO
+
+### Restrição Principal
+- Operário SÓ PODE adicionar serviços dentro de seu turno + 1 hora
+- Exemplo: Turno 1 (05:00-13:40) pode adicionar até 14:40
+
+### Hora Extra
+- Se registrar entre [fim do turno, fim do turno + 1h]: marcar `é_hora_extra = SIM`
+
+### Registrar em Turno Diferente
+- Se operário de T1 registra em T2, EXIGIR nota explicativa
+- Supervisor deve aprovar
+
+### Overlaps
+- 13:20-13:40 (T1 e T2 simultâneos) - permitir seleção manual
+- 21:30-22:00 (T2 e T3 simultâneos) - permitir seleção manual
+
+## FUNCIONALIDADES POR TIPO DE USUÁRIO
+
+**OPERÁRIO**:
+- Adicionar serviço (máquina, tipo, descrição, fotos)
+- Ver serviços do seu turno + próxima 1 hora
+- Editar/remover seus próprios serviços
+- Gerar PDF de seu turno
+- Ver status de aprovação
+
+**SUPERVISOR**:
+- Ver TODOS os serviços (sem restrição de turno)
+- Aprovar/Rejeitar com notas
+- Gerar relatórios consolidados (múltiplos turnos/dias)
+- Filtrar por máquina, período, status
+
+**ADMIN**:
+- Tudo que Supervisor faz, mais:
+- Gerenciar usuários (CRUD)
+- Gerenciar máquinas (CRUD)
+- Gerenciar estoque (CRUD)
+- Ver logs/auditoria
+
+## FILTROS ESPERADOS
+
+```
+1. TURNO ATUAL: Serviços do turno actual + 1h (visibilidade)
+2. DIA ESPECÍFICO: Selecionar data + turnos (T1/T2/T3)
+3. PERÍODO: Data início até data fim (consolidado)
+4. MÁQUINA: Dropdown → histórico dessa máquina
+5. STATUS: Pendente | Aprovado | Rejeitado
+6. BUSCA LIVRE: Por máquina ou descrição
+```
+
+## CÁLCULOS AUTOMÁTICOS
+
+**No ato de CRIAR/EDITAR serviço**:
+1. `TurnoID`: detectar baseado em hora (com validação de overlap)
+2. `WorkDate`: calcular usando regra do Turno 3
+3. `É_Hora_Extra`: SIM se (HoraRegistro > HoraFimTurno) AND (HoraRegistro <= HoraFimTurno + 1h)
+4. `Timestamp`: hora exata de registro
+
+**Validações**:
+- Máquina, tipo, descrição: obrigatórios
+- Descrição: mínimo 10 caracteres
+- Se turno ≠ turno_do_usuário: nota obrigatória
+- Data não pode ser futura
+- Bloquear fora do horário permitido
+
+## RELATÓRIOS
+
+**Relatório Diário (PDF por Turno)**:
+- Cabeçalho: Data de trabalho, Turno (T1/T2/T3)
+- Serviços agrupados por máquina
+- Cada serviço: tipo, descrição, fotos (até 3), horário, status
+- Rodapé: páginas, data de geração
+
+**Relatório Consolidado**:
+- Período selecionado (múltiplos dias/turnos)
+- Agrupado por máquina ou por período
+- Gráficos de tendências
+- Filtrado por status, máquina, tipo
+
+## EXEMPLO DE CENÁRIO
+
+```
+OPERÁRIO JOÃO, TURNO 1 (05:00-13:40)
+
+14:10 (Hora Extra - Permitida até 14:40)
+├─ Clica em "Novo Serviço"
+├─ Máquina: "Máquina A - Linha 1"
+├─ Tipo: "Lubrificação"
+├─ Descrição: "Etapa de lubrificação concluída"
+├─ Fotos: [URL1, URL2]
+├─ Sistema auto-calcula:
+│  ├─ TurnoID = 1
+│  ├─ WorkDate = 21/03/2026
+│  ├─ É_Hora_Extra = SIM (pois 14:10 > 13:40)
+│  ├─ DATA_HORA_REGISTRO = 21/03/2026 14:10:00
+│  └─ STATUS = Pendente
+└─ Registrado na planilha ✓
+```
+
+## ESTRUTURA DO GOOGLE SHEETS
+
+Sugerido:
+- **Aba 1**: Dashboard (resumo do dia, últimos registros, gráficos)
+- **Aba 2**: Novo Serviço (formulário de entrada)
+- **Aba 3**: Histórico (lista com filtros)
+- **Aba 4**: Usuários (CRUD - admin)
+- **Aba 5**: Máquinas (CRUD - admin)
+- **Aba 6**: Estoque (CRUD - admin)
+- **Aba 7**: Relatórios (gerar PDFs)
+- **Aba 8**: Dados_Brutos (tabela fonte - oculta)
+- **App Scripts**: Fórmulas complexas, validações, PDF
+
+## PRIORIDADES
+
+1. **CRÍTICO**: Implementar cálculo de WorkDate para Turno 3
+2. **CRÍTICO**: Bloquear adição fora do horário permitido
+3. **IMPORTANTE**: Filtros dinâmicos por turno/data
+4. **IMPORTANTE**: Sistema de aprovação (supervisor)
+5. **IMPORTANTE**: Gerar PDF
+6. **DESEJÁVEL**: Gráficos, auditoria, backup
+
+## DÚVIDAS FREQUENTES (FAQ)
+
+**P: Como autenticar usuários?**
+R: Use Google Forms com email/senha, ou integração com Google Sign-In
+
+**P: Como integrar com o app Android?**
+R: Se precisar, via API sheets com UUID como chave de sincronização
+
+**P: Quantos registros a planilha aguenta?**
+R: ~100k sem problema. Para mais, considerar Google Workspace + Apps Script otimizado
+
+**P: Como fazer backup?**
+R: Duplicar a planilha mensalmente ou usar script que copia dados para outra planilha
+
+**P: Posso gerar PDF?**
+R: Sim! Usar Google Apps Script + biblioteca como Google Docs ou externa
+
+---
+
+## PRÓXIMOS PASSOS
+
+Antes de começar, confirme:
+1. ✓ Entendido o conceito de WorkDate?
+2. ✓ Quer sistema web-based (Google Sheets) ou offline (Excel)?
+3. ✓ Quantos usuários simultâneos?
+4. ✓ Precisa integrar com app Android existente?
+5. ✓ Que plataforma de automação? (Google Apps Script, Zapier, Power Automate?)
+
+Após confirmação, estarei pronto para:
+- Desenhar as abas com estrutura exata
+- Escrever fórmulas/scripts
+- Criar validações em Data Validation
+- Montar dashboard com gráficos
+- Implementar sistema de filtros
+- Gerar PDFs formatados
+
+---
+
+Agora é com você! Personalize este prompt conforme necessário e envie para outra IA com a pergunta:
+
+**"Você pode me ajudar a implementar este sistema em Google Sheets? Começamos por qual parte?"**
+
