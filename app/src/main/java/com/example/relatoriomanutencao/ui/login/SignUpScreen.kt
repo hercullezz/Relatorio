@@ -1,38 +1,29 @@
 package com.example.relatoriomanutencao.ui.login
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.relatoriomanutencao.R
 import com.example.relatoriomanutencao.ui.theme.RelatorioManutencaoTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,26 +56,81 @@ fun SignUpScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            if (uiState is SignUpUiState.Loading) {
-                CircularProgressIndicator() // Mostra o loading
-            } else {
-                // Esconde o formulário durante o loading
-                SignUpForm(
-                    viewModel = viewModel,
-                    shifts = shifts,
-                    isDropdownExpanded = isDropdownExpanded,
-                    onDropdownExpandedChange = { isDropdownExpanded = it },
-                    onSignUpClick = { viewModel.signUp() },
-                    onNavigateToLogin = onNavigateToLogin
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primary,
+                            MaterialTheme.colorScheme.background
+                        )
+                    )
                 )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .verticalScroll(rememberScrollState())
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Header (Consistência com Login)
+                Surface(
+                    modifier = Modifier.size(80.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 4.dp,
+                    shadowElevation = 4.dp
+                ) {
+                    Image(
+                        painter = painterResource(id = R.mipmap.ic_launcher),
+                        contentDescription = "App Logo",
+                        modifier = Modifier.padding(12.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "Criar Nova Conta",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Cartão de Cadastro
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(24.dp)
+                            .fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        if (uiState is SignUpUiState.Loading) {
+                            CircularProgressIndicator(modifier = Modifier.size(48.dp))
+                        } else {
+                            SignUpForm(
+                                viewModel = viewModel,
+                                shifts = shifts,
+                                isDropdownExpanded = isDropdownExpanded,
+                                onDropdownExpandedChange = { isDropdownExpanded = it },
+                                onSignUpClick = { viewModel.signUp() },
+                                onNavigateToLogin = onNavigateToLogin
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -100,67 +146,91 @@ private fun SignUpForm(
     onSignUpClick: () -> Unit,
     onNavigateToLogin: () -> Unit
 ) {
-    Text("Criar Nova Conta", style = MaterialTheme.typography.headlineMedium)
-    Spacer(modifier = Modifier.height(32.dp))
+    var passwordVisible by remember { mutableStateOf(false) }
+    var confirmPasswordVisible by remember { mutableStateOf(false) }
 
-    // 3. Conecta os campos da UI às variáveis do ViewModel
     OutlinedTextField(
         value = viewModel.name,
         onValueChange = { viewModel.name = it },
         label = { Text("Nome Completo") },
-        modifier = Modifier.fillMaxWidth()
+        leadingIcon = { Icon(Icons.Default.Badge, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp)
     )
-    Spacer(modifier = Modifier.height(16.dp))
+    Spacer(modifier = Modifier.height(12.dp))
 
     OutlinedTextField(
         value = viewModel.username,
         onValueChange = { viewModel.username = it },
         label = { Text("Usuário") },
-        modifier = Modifier.fillMaxWidth()
+        leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp)
     )
-    Spacer(modifier = Modifier.height(16.dp))
+    Spacer(modifier = Modifier.height(12.dp))
 
-    // Email field (required for password reset)
     OutlinedTextField(
         value = viewModel.email,
         onValueChange = { viewModel.email = it },
         label = { Text("E-mail") },
-        modifier = Modifier.fillMaxWidth()
+        leadingIcon = { Icon(Icons.Default.Email, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp)
     )
-    Spacer(modifier = Modifier.height(16.dp))
+    Spacer(modifier = Modifier.height(12.dp))
 
     OutlinedTextField(
         value = viewModel.password,
         onValueChange = { viewModel.password = it },
         label = { Text("Senha") },
-        visualTransformation = PasswordVisualTransformation(),
-        modifier = Modifier.fillMaxWidth()
+        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+        trailingIcon = {
+            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                Icon(
+                    imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                    contentDescription = null
+                )
+            }
+        },
+        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp)
     )
-    Spacer(modifier = Modifier.height(16.dp))
+    Spacer(modifier = Modifier.height(12.dp))
 
-    // Novo campo para confirmar a senha
     OutlinedTextField(
         value = viewModel.confirmPassword,
         onValueChange = { viewModel.confirmPassword = it },
         label = { Text("Confirmar Senha") },
-        visualTransformation = PasswordVisualTransformation(),
-        modifier = Modifier.fillMaxWidth()
+        leadingIcon = { Icon(Icons.Default.LockClock, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+        trailingIcon = {
+            IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                Icon(
+                    imageVector = if (confirmPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                    contentDescription = null
+                )
+            }
+        },
+        visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp)
     )
-    Spacer(modifier = Modifier.height(16.dp))
+    Spacer(modifier = Modifier.height(12.dp))
 
     ExposedDropdownMenuBox(
         expanded = isDropdownExpanded,
         onExpandedChange = onDropdownExpandedChange,
-        modifier = Modifier.fillMaxWidth() // O modificador de preenchimento vai aqui
+        modifier = Modifier.fillMaxWidth()
     ) {
         OutlinedTextField(
-            // O modificador .menuAnchor() é aplicado diretamente aqui pelo escopo do Box
-            modifier = Modifier.menuAnchor(),
-            value = viewModel.selectedShift?.first ?: "",
+            modifier = Modifier.menuAnchor().fillMaxWidth(),
+            value = viewModel.selectedShift?.first ?: "Turno de Trabalho",
             onValueChange = {},
             readOnly = true,
-            label = { Text("Turno de Trabalho") },
+            label = { Text("Turno") },
+            leadingIcon = { Icon(Icons.Default.Schedule, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isDropdownExpanded) },
+            shape = RoundedCornerShape(12.dp)
         )
         ExposedDropdownMenu(
             expanded = isDropdownExpanded,
@@ -182,8 +252,8 @@ private fun SignUpForm(
 
     Button(
         onClick = onSignUpClick,
-        modifier = Modifier.fillMaxWidth(),
-        // Lógica do botão atualizada para incluir o novo campo
+        modifier = Modifier.fillMaxWidth().height(56.dp),
+        shape = RoundedCornerShape(12.dp),
         enabled = viewModel.name.isNotBlank() &&
                 viewModel.username.isNotBlank() &&
                 viewModel.email.isNotBlank() &&
@@ -191,13 +261,14 @@ private fun SignUpForm(
                 viewModel.confirmPassword.isNotBlank() &&
                 viewModel.selectedShift != null
     ) {
-        Text("SOLICITAR CADASTRO")
+        Text("SOLICITAR CADASTRO", fontWeight = FontWeight.Bold)
     }
 
     Spacer(modifier = Modifier.height(16.dp))
 
-    TextButton(onClick = onNavigateToLogin) {
-        Text("Já tem uma conta? Faça o login")
+    TextButton(onClick = onNavigateToLogin, modifier = Modifier.fillMaxWidth()) {
+        Text("Já tem uma conta? ", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Faça o login", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
     }
 }
 
