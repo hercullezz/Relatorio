@@ -1,6 +1,6 @@
 {
-  "versionCode": 6,
-  "versionName": "1.5",
-  "downloadUrl": "https://github.com/hercullezz/Relatorio/releases/download/v1.5/app-debug.apk",
-  "releaseNotes": "Correção de bugs e melhorias no desempenho."
+  "versionCode": 7,
+  "versionName": "1.6",
+  "downloadUrl": "https://github.com/hercullezz/Relatorio/releases/download/v1.6/app-debug.apk",
+  "releaseNotes": "Teste do sistema de upgrade de versão."
 }
