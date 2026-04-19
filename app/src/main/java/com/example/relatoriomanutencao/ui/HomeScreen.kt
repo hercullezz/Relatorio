@@ -1,6 +1,7 @@
 package com.example.relatoriomanutencao.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,6 +13,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -50,30 +54,52 @@ fun HomeScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var itemToDelete by remember { mutableStateOf<com.example.relatoriomanutencao.data.MaintenanceItem?>(null) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Relatório de Manutenção") },
-                actions = {
-                    IconButton(onClick = onNavigateToMachineConfig) {
-                        Icon(Icons.Default.Settings, contentDescription = "Configuração")
-                    }
-                }
+    Box(
+        modifier = Modifier.fillMaxSize().background(
+            Brush.verticalGradient(
+                colors = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.background)
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = { onReportClick("new_service") }) {
-                Icon(Icons.Default.Add, contentDescription = "Novo")
+        )
+    ) {
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                TopAppBar(
+                    title = { Text("Relatório de Manutenção", fontWeight = FontWeight.Bold) },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                        titleContentColor = Color.White,
+                        actionIconContentColor = Color.White
+                    ),
+                    actions = {
+                        IconButton(onClick = onNavigateToMachineConfig) {
+                            Icon(Icons.Default.Settings, contentDescription = "Configuração", tint = Color.White)
+                        }
+                    }
+                )
+            },
+            floatingActionButton = {
+                FloatingActionButton(
+                    onClick = { onReportClick("new_service") },
+                    shape = RoundedCornerShape(16.dp),
+                    containerColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Novo", tint = Color.White)
+                }
             }
-        }
-    ) { padding ->
+        ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 label = { Text("Buscar máquina ou descrição") },
-                modifier = Modifier.fillMaxWidth().padding(8.dp)
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface
+                )
             )
 
             Row(
@@ -84,7 +110,8 @@ fun HomeScreen(
                 Text(
                     text = "Filtrar por Turno ($shiftLabel)",
                     modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White
                 )
                 Switch(checked = filterByCurrentShift, onCheckedChange = { filterByCurrentShift = it })
             }
@@ -119,10 +146,13 @@ fun HomeScreen(
                         val workDateStr = SimpleDateFormat("dd/MM", Locale.getDefault()).apply { timeZone = TimeZone.getTimeZone("America/Porto_Velho") }.format(Date(item.workDateMillisFromServer ?: item.date))
                         
                         Card(
-                            modifier = Modifier.fillMaxWidth().padding(8.dp).combinedClickable(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).combinedClickable(
                                 onClick = { /* Edição */ },
                                 onLongClick = { itemToDelete = item; showDeleteDialog = true }
-                            )
+                            ),
+                            shape = RoundedCornerShape(24.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -145,7 +175,7 @@ fun HomeScreen(
                     if (filteredList.isEmpty()) {
                         item {
                             Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                                Text("Nenhum serviço encontrado.")
+                                Text("Nenhum serviço encontrado.", color = Color.White)
                             }
                         }
                     }
@@ -169,5 +199,6 @@ fun HomeScreen(
                 }
             )
         }
+    }
     }
 }

@@ -26,6 +26,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -115,7 +116,7 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
         serviceType = if (isGraphMode) "Gráfico de Produção" else "Corretiva"
     }
 
-    Scaffold { paddingValues ->
+    Scaffold(containerColor = Color.Transparent) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -146,7 +147,8 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                 Text(
                     text = if (isGraphMode) "Novo Registro de Gráfico" else "Novo Relatório de Manutenção",
                     style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
                 )
 
                 // --- Seleção de Linha (Comum aos dois) ---
@@ -161,7 +163,8 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                         label = { Text(if (isGraphMode) "Linha de Produção (Obrigatório)" else "Linha de Produção") },
                         placeholder = { Text("Selecione a Linha") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isLineDropdownExpanded) },
-                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                        colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = MaterialTheme.colorScheme.surface, focusedContainerColor = MaterialTheme.colorScheme.surface),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
                         modifier = Modifier.menuAnchor().fillMaxWidth()
                     )
                     ExposedDropdownMenu(
@@ -204,7 +207,8 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                                 Text(if (selectedLine == null) "Selecione máquina sem linha" else "Selecione máquina da linha")
                             },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isMachineDropdownExpanded) },
-                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                            colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = MaterialTheme.colorScheme.surface, focusedContainerColor = MaterialTheme.colorScheme.surface),
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
                             modifier = Modifier.menuAnchor().fillMaxWidth()
                         )
                         ExposedDropdownMenu(
@@ -267,12 +271,14 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                     onValueChange = { description = it },
                     label = { Text(if (isGraphMode) "Observações (Opcional)" else "Descrição") },
                     modifier = Modifier.fillMaxWidth().height(if (isGraphMode) 100.dp else 150.dp),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = MaterialTheme.colorScheme.surface, focusedContainerColor = MaterialTheme.colorScheme.surface),
                     maxLines = 10
                 )
 
                 // --- Fotos ---
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "Fotos", style = MaterialTheme.typography.titleMedium)
+                    Text(text = "Fotos", style = MaterialTheme.typography.titleMedium, color = Color.White)
                     Spacer(modifier = Modifier.width(8.dp))
                     Badge(containerColor = if (selectedImageUris.size == 3) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer) {
                         Text("${selectedImageUris.size}/3", modifier = Modifier.padding(4.dp))
@@ -282,9 +288,9 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                 // Aviso sobre limite
                 if (selectedImageUris.size < 3) {
                      Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Info, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Info, contentDescription = null, tint = Color.LightGray, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Máximo de 3 fotos para o layout do relatório.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                        Text("Máximo de 3 fotos para o layout do relatório.", style = MaterialTheme.typography.bodySmall, color = Color.LightGray)
                      }
                 } else {
                      Text("Limite de fotos atingido.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
@@ -363,12 +369,13 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                         Text(
                             text = "Turno atual: ${currentShift.shiftName}",
                             modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.bodyMedium
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White
                         )
                         Text(
                             text = dateFormat.format(Date(currentShift.workDate.time)),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = Color.LightGray
                         )
                     }
 
@@ -379,20 +386,21 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                     ) {
                         Checkbox(
                             checked = usePreviousShift,
-                            onCheckedChange = { usePreviousShift = it }
+                            onCheckedChange = { usePreviousShift = it },
+                            colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.surface, uncheckedColor = Color.White, checkmarkColor = MaterialTheme.colorScheme.primary)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Icon(
                             imageVector = Icons.Default.History,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
-                            tint = if (usePreviousShift) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = if (usePreviousShift) Color.White else Color.LightGray
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "Adicionar ao turno anterior",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = if (usePreviousShift) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            color = if (usePreviousShift) Color.White else Color.LightGray
                         )
                     }
 
@@ -480,7 +488,8 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                             onBack()
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
                     enabled = isFormValid
                 ) {
                     Text(if (isGraphMode) "Salvar Gráfico" else "Salvar Registro")

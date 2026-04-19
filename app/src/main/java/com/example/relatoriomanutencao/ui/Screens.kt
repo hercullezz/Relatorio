@@ -84,6 +84,7 @@ fun StockScreen(viewModel: MainViewModel) {
     )
 
     Scaffold(
+        containerColor = Color.Transparent,
         floatingActionButton = {
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 SmallFloatingActionButton(
@@ -103,6 +104,8 @@ fun StockScreen(viewModel: MainViewModel) {
                     onValueChange = { viewModel.onSearchQueryChanged(it) },
                     label = { Text("Pesquisar (Código ou Descrição)") },
                     modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = MaterialTheme.colorScheme.surface, focusedContainerColor = MaterialTheme.colorScheme.surface),
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     placeholder = { Text("Digite para buscar...") }
                 )
@@ -114,7 +117,7 @@ fun StockScreen(viewModel: MainViewModel) {
                         Text(
                             if(searchQuery.length < 2) "Digite para buscar no catálogo.\nUse o botão (+) ao lado do item para dar entrada." 
                             else "Nenhum item encontrado.", 
-                            color = Color.Gray,
+                            color = Color.LightGray,
                             textAlign = TextAlign.Center
                         )
                     }
@@ -323,9 +326,9 @@ fun StockItemCard(item: StockItem, onConsumeClick: () -> Unit, onAddClick: () ->
     val context = LocalContext.current
     Card(
         modifier = Modifier.fillMaxWidth().animateContentSize(), 
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
@@ -364,15 +367,18 @@ fun SavedReportsScreen() {
         fileList = dir?.listFiles()?.filter { it.isFile && it.extension.equals("pdf", ignoreCase = true) }?.sortedBy { it.lastModified() } ?: emptyList()
     }
     LaunchedEffect(Unit) { refreshFileList() }
-    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
+    Scaffold(containerColor = Color.Transparent, snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
-            Text("Relatórios Salvos", style = MaterialTheme.typography.headlineSmall)
-            if (fileList.isEmpty()) Text("Nenhum relatório encontrado.", modifier = Modifier.padding(top = 16.dp))
+            Text("Relatórios Salvos", style = MaterialTheme.typography.headlineSmall, color = Color.White)
+            if (fileList.isEmpty()) Text("Nenhum relatório encontrado.", modifier = Modifier.padding(top = 16.dp), color = Color.LightGray)
             else {
                 LazyColumn(modifier = Modifier.padding(top = 16.dp)) {
                     items(fileList) { file ->
-                        Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable {
-                            val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+                        Card(
+                            shape = RoundedCornerShape(24.dp),
+                            elevation = CardDefaults.cardElevation(8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable {
+                                val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
                             val intent = Intent(Intent.ACTION_VIEW).apply { setDataAndType(uri, "application/pdf"); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }
                             context.startActivity(Intent.createChooser(intent, "Abrir PDF"))
                         }) {
@@ -506,6 +512,7 @@ fun ServicesListScreen(viewModel: MainViewModel) {
     }
 
     Scaffold(
+         containerColor = Color.Transparent,
          floatingActionButton = {
              ExtendedFloatingActionButton(
                  onClick = {
@@ -535,9 +542,17 @@ fun ServicesListScreen(viewModel: MainViewModel) {
      ) { paddingValues ->
          Box(modifier = Modifier.fillMaxSize()) {
              Column(modifier = Modifier.fillMaxSize().padding(paddingValues).padding(16.dp)) {
-                 Text(text = "Histórico de Manutenção", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                 Text(text = "Histórico de Manutenção", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White)
                  Spacer(modifier = Modifier.height(8.dp))
-                 OutlinedTextField(value = searchQuery, onValueChange = { searchQuery = it }, label = { Text("Buscar serviço") }, modifier = Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Default.Search, null) })
+                 OutlinedTextField(
+                     value = searchQuery, 
+                     onValueChange = { searchQuery = it }, 
+                     label = { Text("Buscar serviço") }, 
+                     modifier = Modifier.fillMaxWidth(), 
+                     shape = RoundedCornerShape(12.dp),
+                     colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = MaterialTheme.colorScheme.surface, focusedContainerColor = MaterialTheme.colorScheme.surface),
+                     leadingIcon = { Icon(Icons.Default.Search, null) }
+                 )
                  Spacer(modifier = Modifier.height(8.dp))
                  Row(
                      modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -592,7 +607,7 @@ fun ServicesListScreen(viewModel: MainViewModel) {
 
                  Spacer(modifier = Modifier.height(16.dp))
                  if (displayedItems.isEmpty()) {
-                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Nenhum serviço encontrado.", color = Color.Gray) }
+                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Nenhum serviço encontrado.", color = Color.LightGray) }
                  } else {
                      LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(bottom = 80.dp)) {
                          items(displayedItems) { item -> MaintenanceItemCard(item = item, onDelete = { itemToDelete = item }, onEdit = { viewModel.setItemToEdit(item) }) }
@@ -629,8 +644,8 @@ fun MaintenanceItemCard(item: MaintenanceItem, onDelete: () -> Unit, onEdit: () 
     val displayShiftId = item.shiftId ?: ShiftManager.getShiftInfo(Instant.ofEpochMilli(item.date)).shiftId
     
     Card(
-        elevation = CardDefaults.cardElevation(4.dp), 
-        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(8.dp), 
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = Modifier.fillMaxWidth().animateContentSize()
     ) {
