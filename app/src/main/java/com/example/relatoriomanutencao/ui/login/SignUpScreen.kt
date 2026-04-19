@@ -87,7 +87,7 @@ fun SignUpScreen(
                     shadowElevation = 4.dp
                 ) {
                     Image(
-                        painter = painterResource(id = R.drawable.generated_app_icon),
+                        painter = painterResource(id = R.drawable.ic_launcher_foreground),
                         contentDescription = "App Logo",
                         modifier = Modifier.padding(12.dp),
                         contentScale = ContentScale.Fit
