@@ -75,7 +75,13 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
     val context = LocalContext.current
     val currentShift = remember { ShiftManager.getCurrentShiftInfo() }
     val previousShift = remember { ShiftManager.getPreviousShiftInfo() }
-    var usePreviousShift by remember { mutableStateOf(false) }
+    val usePreviousShift by viewModel.usePreviousShift.collectAsState()
+
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.setUsePreviousShift(false)
+        }
+    }
 
     val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).apply { timeZone = TimeZone.getTimeZone("America/Porto_Velho") }
 
@@ -386,7 +392,7 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                     ) {
                         Checkbox(
                             checked = usePreviousShift,
-                            onCheckedChange = { usePreviousShift = it },
+                            onCheckedChange = { viewModel.setUsePreviousShift(it) },
                             colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.surface, uncheckedColor = Color.White, checkmarkColor = MaterialTheme.colorScheme.primary)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
@@ -485,6 +491,7 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                             if (!isGraphMode) {
                                 selectedMachine = null
                             }
+                            viewModel.setUsePreviousShift(false)
                             onBack()
                         }
                     },

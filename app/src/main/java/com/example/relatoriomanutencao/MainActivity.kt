@@ -3,6 +3,7 @@ package com.example.relatoriomanutencao
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -180,24 +181,12 @@ fun MainApp(user: ParseUser, onLogout: () -> Unit) { // Recebe o usuário como p
     ) {
     Scaffold(
         containerColor = Color.Transparent,
-        topBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Olá, $displayName",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                IconButton(onClick = { showLogoutDialog = true }) {
-                    Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Sair", tint = Color.White)
-                }
-            }
+                    topBar = {
+            // Header compacto exibindo turno e nome do usuário à direita com logout
+            com.example.relatoriomanutencao.ui.components.CompactHeader(
+                viewModel = viewModel,
+                onLogout = { showLogoutDialog = true }
+            )
         },
         bottomBar = {
             NavigationBar {
@@ -244,7 +233,7 @@ fun MainApp(user: ParseUser, onLogout: () -> Unit) { // Recebe o usuário como p
         NavHost(
             navController = navController,
             startDestination = "new",
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.padding(innerPadding).consumeWindowInsets(innerPadding)
         ) {
             composable("new") { NewMaintenanceScreen(viewModel, onBack = { navController.popBackStack() }) }
             composable("services") { ServicesListScreen(viewModel) }

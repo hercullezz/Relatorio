@@ -62,6 +62,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _itemToEdit = MutableStateFlow<MaintenanceItem?>(null)
     val itemToEdit: StateFlow<MaintenanceItem?> = _itemToEdit.asStateFlow()
 
+    private val _usePreviousShift = MutableStateFlow(false)
+    val usePreviousShift: StateFlow<Boolean> = _usePreviousShift.asStateFlow()
+
+    fun setUsePreviousShift(value: Boolean) {
+        _usePreviousShift.value = value
+    }
+
     fun setItemToEdit(item: MaintenanceItem?) { _itemToEdit.value = item }
 
     val allProductionLines: StateFlow<List<ProductionLine>> = machineConfigRepository.allProductionLines

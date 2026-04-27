@@ -50,7 +50,7 @@ object ExcelImporter {
                         line = reader.readLine() ?: break
                         
                         // CSV simples separado por ; ou ,
-                        // Vamos assumir ; que é comum no Excel BR, mas tentar , se falhar
+                        // Vamos assumir; que é comum no Excel BR, mas tentar, se falhar
                         val tokens = line.split(";")
                         if (tokens.size < 2) {
                              val tokensComma = line.split(",")
