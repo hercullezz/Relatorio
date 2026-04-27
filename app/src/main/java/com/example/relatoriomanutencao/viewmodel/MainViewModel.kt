@@ -125,6 +125,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try { com.parse.ParseUser.requestPasswordReset(email) } catch (e: Exception) { }
         }
     }
+
+    fun deleteUser(objectId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                ParseCloud.callFunction<Any>("adminDeleteUser", mapOf("objectId" to objectId))
+                fetchUsersForAdmin()
+            } catch (e: Exception) { Log.e("MainViewModel", "Erro deletar usuário: ${e.message}") }
+        }
+    }
     
     // --- MANUTENÇÃO ---
     fun refreshMaintenanceList() {
