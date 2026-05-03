@@ -48,17 +48,22 @@ import com.example.relatoriomanutencao.utils.ShiftManager
 @Composable
 fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
     // Modo de entrada: 0 = Serviço, 1 = Gráfico
-    var selectedTabIndex by remember { mutableIntStateOf(0) }
+    var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
     val isGraphMode = selectedTabIndex == 1
 
     // Estados do formulário
-    var description by remember { mutableStateOf("") }
-    var serviceType by remember { mutableStateOf("Corretiva") }
-    var selectedImageUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    var description by rememberSaveable { mutableStateOf("") }
+    var serviceType by rememberSaveable { mutableStateOf("Corretiva") }
+    
+    val uriListSaver = androidx.compose.runtime.saveable.listSaver<List<Uri>, String>(
+        save = { it.map { uri -> uri.toString() } },
+        restore = { it.map { str -> Uri.parse(str) } }
+    )
+    var selectedImageUris by rememberSaveable(stateSaver = uriListSaver) { mutableStateOf(emptyList<Uri>()) }
 
     // Estados para seleção de Máquina e Linha
-    var selectedLine by remember { mutableStateOf<ProductionLine?>(null) }
-    var selectedMachine by remember { mutableStateOf<Machine?>(null) }
+    var selectedLineId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var selectedMachineId by rememberSaveable { mutableStateOf<Long?>(null) }
     var isLineDropdownExpanded by remember { mutableStateOf(false) }
     var isMachineDropdownExpanded by remember { mutableStateOf(false) }
 
@@ -67,9 +72,12 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
     val machinesWithoutLine by viewModel.machinesWithoutLine.collectAsState()
     val allMachines by viewModel.allMachines.collectAsState()
 
+    val selectedLine = remember(selectedLineId, productionLines) { productionLines.find { it.id == selectedLineId } }
+    val selectedMachine = remember(selectedMachineId, allMachines) { allMachines.find { it.id == selectedMachineId } }
+
     // Filtrando as máquinas
-    val filteredMachines = remember(selectedLine, allMachines, machinesWithoutLine) {
-        if (selectedLine == null) machinesWithoutLine else allMachines.filter { it.lineId == selectedLine?.id }
+    val filteredMachines = remember(selectedLineId, allMachines, machinesWithoutLine) {
+        if (selectedLineId == null) machinesWithoutLine else allMachines.filter { it.lineId == selectedLineId }
     }
 
     val context = LocalContext.current
@@ -86,14 +94,16 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
     val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).apply { timeZone = TimeZone.getTimeZone("America/Porto_Velho") }
 
     // Câmera e Galeria
-    var cameraUri by rememberSaveable { mutableStateOf<Uri?>(null) }
+    var cameraUriStr by rememberSaveable { mutableStateOf<String?>(null) }
 
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        val cameraUri = cameraUriStr?.let { Uri.parse(it) }
         if (success && cameraUri != null) {
             if (selectedImageUris.size < 3) {
-                selectedImageUris = selectedImageUris + cameraUri!!
+                selectedImageUris = selectedImageUris + cameraUri
             }
         }
+        cameraUriStr = null
     }
 
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
@@ -107,19 +117,16 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
         }
     }
 
-    fun createImageUri(): Uri {
+    fun createImageUri(): Uri? {
         val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).apply { timeZone = TimeZone.getTimeZone("America/Porto_Velho") }.format(Date())
-        val storageDir = context.getExternalFilesDir("maintenance_photos")
-        val file = File.createTempFile("JPEG_${timeStamp}_", ".jpg", storageDir)
-        return FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
-    }
-
-    // Resetar campos ao trocar de aba
-    LaunchedEffect(selectedTabIndex) {
-        description = ""
-        selectedImageUris = emptyList()
-        selectedMachine = null
-        serviceType = if (isGraphMode) "Gráfico de Produção" else "Corretiva"
+        val contentValues = android.content.ContentValues().apply {
+            put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, "JPEG_${timeStamp}.jpg")
+            put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_PICTURES + "/RelatorioManutencao")
+            }
+        }
+        return context.contentResolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
     }
 
     Scaffold(containerColor = Color.Transparent) { paddingValues ->
@@ -134,13 +141,29 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
             TabRow(selectedTabIndex = selectedTabIndex) {
                 Tab(
                     selected = selectedTabIndex == 0,
-                    onClick = { selectedTabIndex = 0 },
+                    onClick = { 
+                        if (selectedTabIndex != 0) {
+                            selectedTabIndex = 0
+                            description = ""
+                            selectedImageUris = emptyList()
+                            selectedMachineId = null
+                            serviceType = "Corretiva"
+                        }
+                    },
                     text = { Text("Serviço") },
                     icon = { Icon(Icons.Default.Build, contentDescription = null) }
                 )
                 Tab(
                     selected = selectedTabIndex == 1,
-                    onClick = { selectedTabIndex = 1 },
+                    onClick = { 
+                        if (selectedTabIndex != 1) {
+                            selectedTabIndex = 1
+                            description = ""
+                            selectedImageUris = emptyList()
+                            selectedMachineId = null
+                            serviceType = "Gráfico de Produção"
+                        }
+                    },
                     text = { Text("Gráfico") },
                     icon = { Icon(Icons.Default.Image, contentDescription = null) }
                 )
@@ -180,8 +203,8 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                         DropdownMenuItem(
                             text = { Text("Limpar Seleção") },
                             onClick = {
-                                selectedLine = null
-                                selectedMachine = null
+                                selectedLineId = null
+                                selectedMachineId = null
                                 isLineDropdownExpanded = false
                             }
                         )
@@ -189,8 +212,8 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                             DropdownMenuItem(
                                 text = { Text(line.name) },
                                 onClick = {
-                                    selectedLine = line
-                                    selectedMachine = null
+                                    selectedLineId = line.id
+                                    selectedMachineId = null
                                     isLineDropdownExpanded = false
                                 }
                             )
@@ -232,7 +255,7 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                                     DropdownMenuItem(
                                         text = { Text(machine.name) },
                                         onClick = {
-                                            selectedMachine = machine
+                                            selectedMachineId = machine.id
                                             isMachineDropdownExpanded = false
                                         }
                                     )
@@ -308,8 +331,12 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                     Button(
                         onClick = {
                             val uri = createImageUri()
-                            cameraUri = uri
-                            cameraLauncher.launch(uri)
+                            if (uri != null) {
+                                cameraUriStr = uri.toString()
+                                cameraLauncher.launch(uri)
+                            } else {
+                                Toast.makeText(context, "Erro ao acessar armazenamento.", Toast.LENGTH_SHORT).show()
+                            }
                         },
                         enabled = selectedImageUris.size < 3
                     ) {
@@ -489,7 +516,7 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                             description = ""
                             selectedImageUris = emptyList()
                             if (!isGraphMode) {
-                                selectedMachine = null
+                                selectedMachineId = null
                             }
                             viewModel.setUsePreviousShift(false)
                             onBack()
