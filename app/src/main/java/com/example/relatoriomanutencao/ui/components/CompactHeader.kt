@@ -62,7 +62,7 @@ fun CompactHeader(viewModel: MainViewModel, onLogout: () -> Unit) {
     }
 
     // ── Formatação de exibição ───────────────────────────────────────────────
-    val dateFormat = SimpleDateFormat("dd/MM", Locale("pt", "BR")).apply {
+    val dateFormat = SimpleDateFormat("dd/MM", Locale.forLanguageTag("pt-BR")).apply {
         timeZone = TimeZone.getTimeZone("America/Porto_Velho")
     }
     val interval = when (shiftInfo.shiftId) {
