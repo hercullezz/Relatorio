@@ -18,6 +18,9 @@ import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
     primary = IndustrialPrimaryDark,
+    onPrimary = Color(0xFF0F172A), // Azul escuro para contrastar com o azul claro do primary
+    primaryContainer = IndustrialPrimaryDark,
+    onPrimaryContainer = Color(0xFF0F172A),
     secondary = IndustrialSecondaryDark,
     tertiary = IndustrialTertiaryDark,
     background = IndustrialBackgroundDark,
@@ -29,6 +32,9 @@ private val DarkColorScheme = darkColorScheme(
 
 private val LightColorScheme = lightColorScheme(
     primary = IndustrialPrimaryLight,
+    onPrimary = Color.White, // Branco para contrastar com o azul escuro do primary
+    primaryContainer = IndustrialPrimaryLight,
+    onPrimaryContainer = Color.White,
     secondary = IndustrialSecondaryLight,
     tertiary = IndustrialTertiaryLight,
     background = IndustrialBackgroundLight,

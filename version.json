@@ -1,6 +1,6 @@
 {
-  "versionCode": 11,
-  "versionName": "2.0",
-  "downloadUrl": "https://github.com/hercullezz/Relatorio/releases/download/v2.0/app-v2.0-release.apk",
-  "releaseNotes": "Mega atualização visual: Interface industrial premium, modo escuro global e cabeçalho otimizado."
+  "versionCode": 12,
+  "versionName": "2.1",
+  "downloadUrl": "https://github.com/hercullezz/Relatorio/releases/download/v2.1/app-v2.1-release.apk",
+  "releaseNotes": "Ajustes de cores e contraste: Melhor legibilidade do cabeçalho no modo claro e correção da cor do turno (T1/T2/T3) para usuários existentes."
 }

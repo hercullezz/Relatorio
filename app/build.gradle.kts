@@ -13,8 +13,8 @@ android {
         minSdk = 26
         targetSdk = 36
         // Atualizando versão para permitir update "por cima" sem perder dados
-        versionCode = 11
-        versionName = "2.0"
+        versionCode = 12
+        versionName = "2.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

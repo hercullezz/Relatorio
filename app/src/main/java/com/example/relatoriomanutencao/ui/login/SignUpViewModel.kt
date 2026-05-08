@@ -56,7 +56,7 @@ class SignUpViewModel : ViewModel() {
                 user.email = email
                 user.setPassword(password)
                 user.put("name", name)
-                user.put("ShiftId", selectedShift!!.second) // Usa o ID numérico do turno
+                user.put("shiftId", selectedShift!!.second) // Usa o ID numérico do turno (corrigido para lowercase)
 
                 user.put("isApproved", false) // O usuário começa como não aprovado
                 user.put("isAdmin", false)   // E também não é um admin

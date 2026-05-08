@@ -27,7 +27,11 @@ fun CompactHeader(viewModel: MainViewModel, onLogout: () -> Unit) {
     val user       = ParseUser.getCurrentUser()
     val fullName   = user?.getString("name") ?: user?.username ?: ""
     val firstName  = fullName.trim().split(" ").firstOrNull() ?: fullName
-    val userShiftId = user?.getInt("shiftId") ?: 0   // shiftId configurado no Parse para este usuário
+    
+    // Tenta ler 'shiftId' (minúsculo). Se for 0, tenta 'ShiftId' (maiúsculo) para compatibilidade.
+    val userShiftId = user?.getInt("shiftId").let { id ->
+        if (id == null || id == 0) user?.getInt("ShiftId") ?: 0 else id
+    } 
 
     // ── Estado do turno (reativo, atualiza a cada minuto) ───────────────────
     val usePreviousShift by viewModel.usePreviousShift.collectAsState()
@@ -104,13 +108,13 @@ fun CompactHeader(viewModel: MainViewModel, onLogout: () -> Unit) {
                     text = firstName,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onPrimary
                 )
                 Text(
                     text = "${dateFormat.format(shiftInfo.workDate)} • $interval",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
                 )
             }
 
@@ -119,7 +123,7 @@ fun CompactHeader(viewModel: MainViewModel, onLogout: () -> Unit) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Logout,
                     contentDescription = "Sair",
-                    tint = MaterialTheme.colorScheme.onSurface
+                    tint = MaterialTheme.colorScheme.onPrimary
                 )
             }
         }

@@ -6,12 +6,12 @@ import androidx.compose.ui.graphics.Color
 val IndustrialPrimaryLight = Color(0xFF1E3A8A)      // Azul Escuro Corporativo
 val IndustrialSecondaryLight = Color(0xFF475569)    // Cinza Aço
 val IndustrialTertiaryLight = Color(0xFF059669)     // Verde Esmeralda (Sucesso)
-val IndustrialBackgroundLight = Color(0xFFF8FAFC)   // Cinza Muito Claro
+val IndustrialBackgroundLight = Color(0xFFE2E8F0)   // Cinza mais profundo para destacar elementos brancos
 val IndustrialSurfaceLight = Color(0xFFFFFFFF)      // Branco Puro
 
 // Paleta Industrial (Modo Escuro)
 val IndustrialPrimaryDark = Color(0xFF60A5FA)       // Azul Claro
-val IndustrialSecondaryDark = Color(0xFF94A3B8)     // Cinza Claro
+val IndustrialSecondaryDark = Color(0xFFFFFFFF)     // Branco (Máxima visibilidade no modo escuro)
 val IndustrialTertiaryDark = Color(0xFF34D399)      // Verde Claro
 val IndustrialBackgroundDark = Color(0xFF0F172A)    // Azul Noite / Ardósia Escuro
 val IndustrialSurfaceDark = Color(0xFF1E293B)       // Ardósia Intermediário

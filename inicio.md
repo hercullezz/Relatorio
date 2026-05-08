@@ -15,10 +15,10 @@
 | **Banco Local** | Room (SQLite) |
 | **Backend** | Parse Server |
 | **Geração de PDF** | PdfDocument Android nativo |
-| **Versão Atual** | 2.0 (versionCode 11) |
+| **Versão Atual** | 2.1 (versionCode 12) |
 | **Min SDK / Target SDK** | 26 / 36 |
 | **Repositório** | github.com/hercullezz/Relatorio |
-| **APK mais recente** | app-v2.0-release.apk |
+| **APK mais recente** | app-v2.1-release.apk |
 | **Estilo Visual** | "Industrial Premium" — dark mode, gradientes, glassmorphism |
 
 ---
