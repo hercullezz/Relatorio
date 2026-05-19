@@ -1,6 +1,6 @@
 {
   "versionCode": 14,
   "versionName": "2.3",
-  "downloadUrl": "https://github.com/hercullezz/Relatorio/releases/download/v2.3/app-v2.3-release.apk",
+  "downloadUrl": "https://github.com/hercullezz/Relatorio/releases/download/v2.3/app-release2.3-release.apk",
   "releaseNotes": "Aviso de duplicidade de gráficos; Destaque visual para gráficos na lista de serviços; Fotos em PDF agora preservam a proporção sem distorcer."
 }
