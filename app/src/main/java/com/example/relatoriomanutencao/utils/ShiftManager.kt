@@ -6,6 +6,15 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.*
 
+enum class ShiftAccessStatus { ACTIVE, OVERTIME, BLOCKED }
+
+data class ShiftAccessResult(
+    val status: ShiftAccessStatus,
+    val userShiftId: Int,
+    /** Horário de início do PRÓXIMO turno, para exibir no card de bloqueio. Ex: "05:00" */
+    val nextShiftStartTime: String
+)
+
 object ShiftManager {
 
     data class Shift(val id: Int, val displayName: String, val start: LocalTime, val end: LocalTime, val crossesMidnight: Boolean)
@@ -123,5 +132,55 @@ object ShiftManager {
     fun getShiftInfoForShiftIdAndWorkDate(shiftId: Int, workDateMillis: Long): ShiftInfo {
         val shift = shifts.find { it.id == shiftId } ?: shifts[0]
         return ShiftInfo(shift.id, shift.displayName, Date(workDateMillis))
+    }
+
+    /**
+     * Verifica se o usuário com [userShiftId] pode adicionar um serviço agora.
+     * Retorna ACTIVE, OVERTIME ou BLOCKED conforme as janelas de cada turno:
+     *   T1: Ativo 05:00–13:40 | Hora Extra 13:40–14:40
+     *   T2: Ativo 13:20–22:00 | Hora Extra 22:00–23:00
+     *   T3: Ativo 21:30–05:20 | Hora Extra 05:20–06:20  (cruza meia-noite)
+     */
+    fun canUserAddService(userShiftId: Int): ShiftAccessResult {
+        val zone = ZoneId.of("America/Porto_Velho")
+        val now = LocalTime.now(zone)
+
+        return when (userShiftId) {
+            1 -> {
+                val activeStart  = LocalTime.of(5, 0)
+                val activeEnd    = LocalTime.of(13, 40)
+                val overtimeEnd  = LocalTime.of(14, 40)
+                val status = when {
+                    now >= activeStart && now < activeEnd   -> ShiftAccessStatus.ACTIVE
+                    now >= activeEnd   && now < overtimeEnd -> ShiftAccessStatus.OVERTIME
+                    else                                    -> ShiftAccessStatus.BLOCKED
+                }
+                ShiftAccessResult(status, userShiftId, "05:00")
+            }
+            2 -> {
+                val activeStart  = LocalTime.of(13, 20)
+                val activeEnd    = LocalTime.of(22, 0)
+                val overtimeEnd  = LocalTime.of(23, 0)
+                val status = when {
+                    now >= activeStart && now < activeEnd   -> ShiftAccessStatus.ACTIVE
+                    now >= activeEnd   && now < overtimeEnd -> ShiftAccessStatus.OVERTIME
+                    else                                    -> ShiftAccessStatus.BLOCKED
+                }
+                ShiftAccessResult(status, userShiftId, "13:20")
+            }
+            3 -> {
+                // T3 cruza meia-noite: ativo de 21:30 até 05:20 do dia seguinte
+                val activeStart  = LocalTime.of(21, 30)
+                val activeEnd    = LocalTime.of(5, 20)
+                val overtimeEnd  = LocalTime.of(6, 20)
+                val status = when {
+                    now >= activeStart || now < activeEnd   -> ShiftAccessStatus.ACTIVE
+                    now >= activeEnd   && now < overtimeEnd -> ShiftAccessStatus.OVERTIME
+                    else                                    -> ShiftAccessStatus.BLOCKED
+                }
+                ShiftAccessResult(status, userShiftId, "21:30")
+            }
+            else -> ShiftAccessResult(ShiftAccessStatus.BLOCKED, userShiftId, "05:00")
+        }
     }
 }

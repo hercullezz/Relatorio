@@ -18,7 +18,9 @@ data class MaintenanceItem(
     var workDateMillisFromServer: Long? = null,
     val objectId: String? = null,
     val isPendingUpdate: Boolean = false,
-    val isPendingDeletion: Boolean = false
+    val isPendingDeletion: Boolean = false,
+    /** true quando o registro foi feito durante a janela de 1h após o fim do turno */
+    val overtime: Boolean = false
 )
 
 @Entity(tableName = "stock_items")

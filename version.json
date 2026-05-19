@@ -1,6 +1,6 @@
 {
-  "versionCode": 12,
-  "versionName": "2.1",
-  "downloadUrl": "https://github.com/hercullezz/Relatorio/releases/download/v2.1/app-v2.1-release.apk",
-  "releaseNotes": "Ajustes de cores e contraste: Melhor legibilidade do cabeçalho no modo claro e correção da cor do turno (T1/T2/T3) para usuários existentes."
+  "versionCode": 14,
+  "versionName": "2.3",
+  "downloadUrl": "https://github.com/hercullezz/Relatorio/releases/download/v2.3/app-v2.3-release.apk",
+  "releaseNotes": "Aviso de duplicidade de gráficos; Destaque visual para gráficos na lista de serviços; Fotos em PDF agora preservam a proporção sem distorcer."
 }

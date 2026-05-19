@@ -146,6 +146,6 @@ Após o fim oficial do turno, o operário pode registrar/gerar PDF por mais **1 
 
 ---
 
-*Última atualização: 2026-05-05 | Versão do app: 2.0*
+*Última atualização: 2026-05-13 | Versão do app: 2.2*
 
 > **Arquivos removidos (conteúdo migrado para `conhecimento/`):** `ASSISTANCE.md`, `NEXT_STEPS.md`, `SHIFT_LOGIC_DOCUMENTATION.md`, `SUMARIO_EXECUTIVO_PROJETO.md`

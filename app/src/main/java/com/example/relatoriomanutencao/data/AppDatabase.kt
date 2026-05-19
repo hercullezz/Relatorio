@@ -94,7 +94,7 @@ interface MachineDao {
     suspend fun deleteMachine(machine: Machine)
 }
 
-@Database(entities = [MaintenanceItem::class, StockItem::class, ProductionLine::class, Machine::class], version = 3, exportSchema = false)
+@Database(entities = [MaintenanceItem::class, StockItem::class, ProductionLine::class, Machine::class], version = 4, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun maintenanceDao(): MaintenanceDao
     abstract fun stockDao(): StockDao

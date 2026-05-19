@@ -12,14 +12,17 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -32,17 +35,19 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
+import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
 import com.example.relatoriomanutencao.data.Machine
 import com.example.relatoriomanutencao.data.ProductionLine
+import com.example.relatoriomanutencao.utils.ShiftAccessStatus
+import com.example.relatoriomanutencao.utils.ShiftManager
 import com.example.relatoriomanutencao.viewmodel.MainViewModel
-import java.io.File
+import com.parse.ParseUser
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
-import com.example.relatoriomanutencao.utils.ShiftManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,7 +59,7 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
     // Estados do formulário
     var description by rememberSaveable { mutableStateOf("") }
     var serviceType by rememberSaveable { mutableStateOf("Corretiva") }
-    
+
     val uriListSaver = androidx.compose.runtime.saveable.listSaver<List<Uri>, String>(
         save = { it.map { uri -> uri.toString() } },
         restore = { it.map { str -> Uri.parse(str) } }
@@ -71,30 +76,61 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
     val productionLines by viewModel.allProductionLines.collectAsState()
     val machinesWithoutLine by viewModel.machinesWithoutLine.collectAsState()
     val allMachines by viewModel.allMachines.collectAsState()
+    val allMaintenanceItems by viewModel.maintenanceItems.collectAsState()
 
     val selectedLine = remember(selectedLineId, productionLines) { productionLines.find { it.id == selectedLineId } }
     val selectedMachine = remember(selectedMachineId, allMachines) { allMachines.find { it.id == selectedMachineId } }
 
-    // Filtrando as máquinas
     val filteredMachines = remember(selectedLineId, allMachines, machinesWithoutLine) {
         if (selectedLineId == null) machinesWithoutLine else allMachines.filter { it.lineId == selectedLineId }
     }
 
     val context = LocalContext.current
-    val currentShift = remember { ShiftManager.getCurrentShiftInfo() }
-    val previousShift = remember { ShiftManager.getPreviousShiftInfo() }
-    val usePreviousShift by viewModel.usePreviousShift.collectAsState()
 
-    DisposableEffect(Unit) {
-        onDispose {
-            viewModel.setUsePreviousShift(false)
+    // ── Dados do usuário e controle de acesso ───────────────────────────────
+    val user = ParseUser.getCurrentUser()
+    val userShiftId = user?.getInt("shiftId").let { id ->
+        if (id == null || id == 0) user?.getInt("ShiftId") ?: 0 else id
+    }
+    val userRole = user?.getString("role") ?: ""
+    val isSupervisorOrAdmin = userRole == "Supervisor" || userRole == "Administrador"
+
+    // Estado reativo do acesso (atualiza a cada minuto)
+    var shiftAccess by remember {
+        mutableStateOf(ShiftManager.canUserAddService(userShiftId))
+    }
+    LaunchedEffect(userShiftId) {
+        while (true) {
+            shiftAccess = ShiftManager.canUserAddService(userShiftId)
+            delay(60_000L)
         }
     }
 
-    val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).apply { timeZone = TimeZone.getTimeZone("America/Porto_Velho") }
+    // Supervisor/Admin sempre pode adicionar → acesso ACTIVE
+    val isAccessAllowed = isSupervisorOrAdmin || shiftAccess.status != ShiftAccessStatus.BLOCKED
+    val isOvertime = !isSupervisorOrAdmin && shiftAccess.status == ShiftAccessStatus.OVERTIME
+
+    val currentShift = remember { ShiftManager.getCurrentShiftInfo() }
+    val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).apply {
+        timeZone = TimeZone.getTimeZone("America/Porto_Velho")
+    }
 
     // Câmera e Galeria
     var cameraUriStr by rememberSaveable { mutableStateOf<String?>(null) }
+
+    val existingGraph = remember(isGraphMode, selectedLine, allMaintenanceItems, currentShift) {
+        if (!isGraphMode || selectedLine == null) null
+        else {
+            val expectedMachineName = "LINHA ${selectedLine.name}"
+            allMaintenanceItems.find { item ->
+                item.machine == expectedMachineName && 
+                item.serviceType == "Gráfico de Produção" &&
+                item.shiftId == currentShift.shiftId &&
+                (item.workDateMillisFromServer == currentShift.workDate.time ||
+                 ShiftManager.getShiftInfo(java.time.Instant.ofEpochMilli(item.date)).workDate.time == currentShift.workDate.time)
+            }
+        }
+    }
 
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         val cameraUri = cameraUriStr?.let { Uri.parse(it) }
@@ -107,26 +143,31 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
     }
 
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
-        // Limita a adição para não ultrapassar 3 no total
         val remainingSlots = 3 - selectedImageUris.size
         if (remainingSlots > 0) {
             selectedImageUris = selectedImageUris + uris.take(remainingSlots)
         }
         if (uris.size > remainingSlots) {
-             Toast.makeText(context, "Apenas 3 fotos permitidas.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Apenas 3 fotos permitidas.", Toast.LENGTH_SHORT).show()
         }
     }
 
     fun createImageUri(): Uri? {
-        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).apply { timeZone = TimeZone.getTimeZone("America/Porto_Velho") }.format(Date())
+        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
+            .apply { timeZone = TimeZone.getTimeZone("America/Porto_Velho") }.format(Date())
         val contentValues = android.content.ContentValues().apply {
             put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, "JPEG_${timeStamp}.jpg")
             put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_PICTURES + "/RelatorioManutencao")
+                put(
+                    android.provider.MediaStore.MediaColumns.RELATIVE_PATH,
+                    android.os.Environment.DIRECTORY_PICTURES + "/RelatorioManutencao"
+                )
             }
         }
-        return context.contentResolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+        return context.contentResolver.insert(
+            android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues
+        )
     }
 
     Scaffold(containerColor = Color.Transparent) { paddingValues ->
@@ -141,7 +182,7 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
             TabRow(selectedTabIndex = selectedTabIndex) {
                 Tab(
                     selected = selectedTabIndex == 0,
-                    onClick = { 
+                    onClick = {
                         if (selectedTabIndex != 0) {
                             selectedTabIndex = 0
                             description = ""
@@ -155,7 +196,7 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                 )
                 Tab(
                     selected = selectedTabIndex == 1,
-                    onClick = { 
+                    onClick = {
                         if (selectedTabIndex != 1) {
                             selectedTabIndex = 1
                             description = ""
@@ -180,20 +221,35 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                     color = Color.White
                 )
 
-                // --- Seleção de Linha (Comum aos dois) ---
+                // ── Banner de status de acesso ao turno ─────────────────────
+                ShiftAccessBanner(
+                    isSupervisorOrAdmin = isSupervisorOrAdmin,
+                    status = shiftAccess.status,
+                    userShiftId = userShiftId,
+                    nextShiftStartTime = shiftAccess.nextShiftStartTime,
+                    workDateText = dateFormat.format(Date(currentShift.workDate.time))
+                )
+
+                // ── Formulário (desabilitado se BLOCKED) ─────────────────────
+
+                // --- Seleção de Linha ---
                 ExposedDropdownMenuBox(
-                    expanded = isLineDropdownExpanded,
-                    onExpandedChange = { isLineDropdownExpanded = !isLineDropdownExpanded }
+                    expanded = isLineDropdownExpanded && isAccessAllowed,
+                    onExpandedChange = { if (isAccessAllowed) isLineDropdownExpanded = !isLineDropdownExpanded }
                 ) {
                     OutlinedTextField(
                         value = selectedLine?.name ?: "",
                         onValueChange = {},
                         readOnly = true,
+                        enabled = isAccessAllowed,
                         label = { Text(if (isGraphMode) "Linha de Produção (Obrigatório)" else "Linha de Produção") },
                         placeholder = { Text("Selecione a Linha") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isLineDropdownExpanded) },
-                        colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = MaterialTheme.colorScheme.surface, focusedContainerColor = MaterialTheme.colorScheme.surface),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                            focusedContainerColor = MaterialTheme.colorScheme.surface
+                        ),
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.menuAnchor().fillMaxWidth()
                     )
                     ExposedDropdownMenu(
@@ -222,22 +278,26 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                 }
 
                 if (!isGraphMode) {
-                    // --- Seleção de Máquina (Apenas modo Serviço) ---
+                    // --- Seleção de Máquina ---
                     ExposedDropdownMenuBox(
-                        expanded = isMachineDropdownExpanded,
-                        onExpandedChange = { isMachineDropdownExpanded = !isMachineDropdownExpanded }
+                        expanded = isMachineDropdownExpanded && isAccessAllowed,
+                        onExpandedChange = { if (isAccessAllowed) isMachineDropdownExpanded = !isMachineDropdownExpanded }
                     ) {
                         OutlinedTextField(
                             value = selectedMachine?.name ?: "",
                             onValueChange = {},
                             readOnly = true,
+                            enabled = isAccessAllowed,
                             label = { Text("Máquina") },
                             placeholder = {
                                 Text(if (selectedLine == null) "Selecione máquina sem linha" else "Selecione máquina da linha")
                             },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isMachineDropdownExpanded) },
-                            colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = MaterialTheme.colorScheme.surface, focusedContainerColor = MaterialTheme.colorScheme.surface),
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                focusedContainerColor = MaterialTheme.colorScheme.surface
+                            ),
+                            shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.menuAnchor().fillMaxWidth()
                         )
                         ExposedDropdownMenu(
@@ -264,15 +324,16 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                         }
                     }
 
-                    // --- Tipo de Serviço (chips iguais) ---
+                    // --- Tipo de Serviço ---
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         val types = listOf("Corretiva", "Preventiva", "Preditiva", "Informação")
                         types.forEach { type ->
                             val isInfo = type == "Informação"
                             FilterChip(
                                 selected = serviceType == type,
-                                onClick = { serviceType = type },
+                                onClick = { if (isAccessAllowed) serviceType = type },
                                 label = { Text(type, maxLines = 1) },
+                                enabled = isAccessAllowed,
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(40.dp),
@@ -284,7 +345,6 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                         }
                     }
                 } else {
-                    // --- Modo Gráfico Informativo ---
                     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
                         Text(
                             text = "Este registro será salvo como 'Gráfico de Produção'. Adicione a foto da tela abaixo.",
@@ -298,10 +358,16 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
+                    enabled = isAccessAllowed,
                     label = { Text(if (isGraphMode) "Observações (Opcional)" else "Descrição") },
-                    modifier = Modifier.fillMaxWidth().height(if (isGraphMode) 100.dp else 150.dp),
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = MaterialTheme.colorScheme.surface, focusedContainerColor = MaterialTheme.colorScheme.surface),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(if (isGraphMode) 100.dp else 150.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedContainerColor = MaterialTheme.colorScheme.surface
+                    ),
                     maxLines = 10
                 )
 
@@ -309,25 +375,37 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(text = "Fotos", style = MaterialTheme.typography.titleMedium, color = Color.White)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Badge(containerColor = if (selectedImageUris.size == 3) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer) {
+                    Badge(
+                        containerColor = if (selectedImageUris.size == 3)
+                            MaterialTheme.colorScheme.errorContainer
+                        else
+                            MaterialTheme.colorScheme.secondaryContainer
+                    ) {
                         Text("${selectedImageUris.size}/3", modifier = Modifier.padding(4.dp))
                     }
                 }
 
-                // Aviso sobre limite
                 if (selectedImageUris.size < 3) {
-                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Info, contentDescription = null, tint = Color.LightGray, modifier = Modifier.size(16.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Info, contentDescription = null,
+                            tint = Color.LightGray, modifier = Modifier.size(16.dp)
+                        )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Máximo de 3 fotos para o layout do relatório.", style = MaterialTheme.typography.bodySmall, color = Color.LightGray)
-                     }
+                        Text(
+                            "Máximo de 3 fotos para o layout do relatório.",
+                            style = MaterialTheme.typography.bodySmall, color = Color.LightGray
+                        )
+                    }
                 } else {
-                     Text("Limite de fotos atingido.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    Text(
+                        "Limite de fotos atingido.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
 
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
                         onClick = {
                             val uri = createImageUri()
@@ -338,7 +416,7 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                                 Toast.makeText(context, "Erro ao acessar armazenamento.", Toast.LENGTH_SHORT).show()
                             }
                         },
-                        enabled = selectedImageUris.size < 3
+                        enabled = selectedImageUris.size < 3 && isAccessAllowed
                     ) {
                         Icon(Icons.Default.AddPhotoAlternate, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
@@ -346,7 +424,7 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                     }
                     OutlinedButton(
                         onClick = { galleryLauncher.launch("image/*") },
-                        enabled = selectedImageUris.size < 3
+                        enabled = selectedImageUris.size < 3 && isAccessAllowed
                     ) {
                         Text("Galeria")
                     }
@@ -364,11 +442,8 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                                         contentScale = ContentScale.Crop
                                     )
                                 }
-                                // Botão X para remover foto
                                 IconButton(
-                                    onClick = {
-                                        selectedImageUris = selectedImageUris.filter { it != uri }
-                                    },
+                                    onClick = { selectedImageUris = selectedImageUris.filter { it != uri } },
                                     modifier = Modifier
                                         .align(Alignment.TopEnd)
                                         .offset(x = 4.dp, y = (-4).dp)
@@ -377,10 +452,8 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                                         .size(24.dp)
                                 ) {
                                     Icon(
-                                        Icons.Default.Close,
-                                        contentDescription = "Remover",
-                                        tint = Color.Red,
-                                        modifier = Modifier.size(16.dp)
+                                        Icons.Default.Close, contentDescription = "Remover",
+                                        tint = Color.Red, modifier = Modifier.size(16.dp)
                                     )
                                 }
                             }
@@ -388,95 +461,21 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                // --- Informações do turno e opção de turno anterior ---
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // Linha: turno atual
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = "Turno atual: ${currentShift.shiftName}",
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White
-                        )
-                        Text(
-                            text = dateFormat.format(Date(currentShift.workDate.time)),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.LightGray
-                        )
-                    }
-
-                    // Checkbox turno anterior
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Start
-                    ) {
-                        Checkbox(
-                            checked = usePreviousShift,
-                            onCheckedChange = { viewModel.setUsePreviousShift(it) },
-                            colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.surface, uncheckedColor = Color.White, checkmarkColor = MaterialTheme.colorScheme.primary)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Icon(
-                            imageVector = Icons.Default.History,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                            tint = if (usePreviousShift) Color.White else Color.LightGray
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Adicionar ao turno anterior",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = if (usePreviousShift) Color.White else Color.LightGray
-                        )
-                    }
-
-                    // Card informativo quando turno anterior está selecionado
-                    if (usePreviousShift) {
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.History,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Column {
-                                    Text(
-                                        text = "Será salvo no turno anterior:",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                    Text(
-                                        text = previousShift.shiftName,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                    Text(
-                                        text = dateFormat.format(Date(previousShift.workDate.time)),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                }
-                            }
+                if (existingGraph != null) {
+                    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF991B1B).copy(alpha = 0.9f))) {
+                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFFCA5A5))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "Atenção: Já existe um gráfico salvo para esta linha neste turno. Ao salvar, você criará um registro duplicado.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.White
+                            )
                         }
                     }
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
 
                 // --- Botão Salvar ---
@@ -488,7 +487,7 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
 
                 Button(
                     onClick = {
-                        if (isFormValid) {
+                        if (isFormValid && isAccessAllowed) {
                             val urisString = selectedImageUris.joinToString(",") { it.toString() }
 
                             val finalMachineName = if (isGraphMode) {
@@ -502,31 +501,134 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                                 }
                             }
 
-                            val finalDescription = if (isGraphMode && description.isBlank()) "Registro de Gráfico de Produção" else description
+                            val finalDescription =
+                                if (isGraphMode && description.isBlank()) "Registro de Gráfico de Produção" else description
 
                             viewModel.addMaintenanceItem(
                                 machine = finalMachineName,
                                 serviceType = if (isGraphMode) "Gráfico de Produção" else serviceType,
                                 description = finalDescription,
                                 photoUris = urisString,
-                                overrideShiftId = if (usePreviousShift) previousShift.shiftId else null,
-                                overrideWorkDateMillis = if (usePreviousShift) previousShift.workDate.time else null
+                                overtime = isOvertime
                             )
 
                             description = ""
                             selectedImageUris = emptyList()
-                            if (!isGraphMode) {
-                                selectedMachineId = null
-                            }
-                            viewModel.setUsePreviousShift(false)
+                            if (!isGraphMode) selectedMachineId = null
                             onBack()
                         }
                     },
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                    enabled = isFormValid
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = isFormValid && isAccessAllowed
                 ) {
                     Text(if (isGraphMode) "Salvar Gráfico" else "Salvar Registro")
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Banner de status de acesso ao turno.
+ * ACTIVE  → badge verde discreto
+ * OVERTIME → card laranja de aviso com info de hora extra
+ * BLOCKED  → card vermelho bloqueador com horário do próximo turno
+ */
+@Composable
+private fun ShiftAccessBanner(
+    isSupervisorOrAdmin: Boolean,
+    status: ShiftAccessStatus,
+    userShiftId: Int,
+    nextShiftStartTime: String,
+    workDateText: String
+) {
+    when {
+        isSupervisorOrAdmin -> {
+            // Acesso irrestrito — sem banner
+        }
+
+        status == ShiftAccessStatus.ACTIVE -> {
+            // Turno Ativo — banner removido pois a indicação já existe no header
+        }
+
+        status == ShiftAccessStatus.OVERTIME -> {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF7C2D12).copy(alpha = 0.9f)),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = Color(0xFFFBBF24),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column {
+                        Text(
+                            text = "Hora Extra — T$userShiftId",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFFBBF24)
+                        )
+                        Text(
+                            text = "Você está na janela de 1h após o fim do seu turno.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.85f)
+                        )
+                        Text(
+                            text = "O registro será marcado como Hora Extra.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+            }
+        }
+
+        status == ShiftAccessStatus.BLOCKED -> {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = "Fora do Seu Turno",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Text(
+                            text = "Você só pode adicionar serviços durante o T$userShiftId.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.85f)
+                        )
+                        Text(
+                            text = "Seu turno começa às $nextShiftStartTime.",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
                 }
             }
         }

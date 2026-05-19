@@ -34,20 +34,13 @@ fun CompactHeader(viewModel: MainViewModel, onLogout: () -> Unit) {
     } 
 
     // ── Estado do turno (reativo, atualiza a cada minuto) ───────────────────
-    val usePreviousShift by viewModel.usePreviousShift.collectAsState()
-
-    var shiftInfo      by remember(usePreviousShift) {
-        mutableStateOf(
-            if (usePreviousShift) ShiftManager.getPreviousShiftInfo()
-            else ShiftManager.getCurrentShiftInfo()
-        )
-    }
+    var shiftInfo      by remember { mutableStateOf(ShiftManager.getCurrentShiftInfo()) }
     var currentShiftId  by remember { mutableStateOf(ShiftManager.getCurrentShiftInfo().shiftId) }
     var visibleShiftIds by remember { mutableStateOf(ShiftManager.getVisibleShiftInfos().map { it.shiftId }.toSet()) }
 
-    LaunchedEffect(usePreviousShift) {
+    LaunchedEffect(Unit) {
         while (true) {
-            shiftInfo       = if (usePreviousShift) ShiftManager.getPreviousShiftInfo() else ShiftManager.getCurrentShiftInfo()
+            shiftInfo       = ShiftManager.getCurrentShiftInfo()
             currentShiftId  = ShiftManager.getCurrentShiftInfo().shiftId
             visibleShiftIds = ShiftManager.getVisibleShiftInfos().map { it.shiftId }.toSet()
             delay(60_000L)

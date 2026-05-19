@@ -202,7 +202,7 @@ object PdfGenerator {
                             for (uriString in photoUris) {
                                 val bitmap = getBitmapFromUrlOrUri(context, uriString)
                                 if (bitmap != null) {
-                                    canvas.drawBitmap(bitmap, null, RectF(currentX, yPosition, currentX + photoWidth, yPosition + photoHeight), null)
+                                    drawBitmapFitCenter(canvas, bitmap, currentX, yPosition, photoWidth, photoHeight)
                                     bitmap.recycle()
                                 }
                                 currentX += photoWidth + 15f
@@ -253,7 +253,7 @@ object PdfGenerator {
         if (photoUri != null) {
             val bitmap = getBitmapFromUrlOrUri(context, photoUri)
             if (bitmap != null) {
-                canvas.drawBitmap(bitmap, null, RectF(x, y + 15f, x + w, y + 15f + h), null)
+                drawBitmapFitCenter(canvas, bitmap, x, y + 15f, w, h)
                 bitmap.recycle()
             }
         }
@@ -278,5 +278,14 @@ object PdfGenerator {
                 if (base64String != null) { val bytes = Base64.decode(base64String, Base64.DEFAULT); BitmapFactory.decodeByteArray(bytes, 0, bytes.size) } else null
             } else { context.contentResolver.openInputStream(path.toUri())?.use { BitmapFactory.decodeStream(it) } }
         } catch (e: Exception) { null }
+    }
+
+    private fun drawBitmapFitCenter(canvas: android.graphics.Canvas, bitmap: Bitmap, dstX: Float, dstY: Float, dstW: Float, dstH: Float) {
+        val scale = kotlin.math.min(dstW / bitmap.width.toFloat(), dstH / bitmap.height.toFloat())
+        val fitW = bitmap.width * scale
+        val fitH = bitmap.height * scale
+        val left = dstX + (dstW - fitW) / 2f
+        val top = dstY + (dstH - fitH) / 2f
+        canvas.drawBitmap(bitmap, null, RectF(left, top, left + fitW, top + fitH), null)
     }
 }

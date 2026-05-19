@@ -62,13 +62,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _itemToEdit = MutableStateFlow<MaintenanceItem?>(null)
     val itemToEdit: StateFlow<MaintenanceItem?> = _itemToEdit.asStateFlow()
 
-    private val _usePreviousShift = MutableStateFlow(false)
-    val usePreviousShift: StateFlow<Boolean> = _usePreviousShift.asStateFlow()
-
-    fun setUsePreviousShift(value: Boolean) {
-        _usePreviousShift.value = value
-    }
-
     fun setItemToEdit(item: MaintenanceItem?) { _itemToEdit.value = item }
 
     val allProductionLines: StateFlow<List<ProductionLine>> = machineConfigRepository.allProductionLines
@@ -190,15 +183,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         serviceType: String,
         description: String,
         photoUris: String,
-        overrideShiftId: Int? = null,
-        overrideWorkDateMillis: Long? = null
+        overtime: Boolean = false
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             // No UI bloqueamos apenas o tempo de salvar no banco local (milisegundos)
             _isLoading.value = true
             try {
-                val shiftIdToSave = overrideShiftId ?: ShiftManager.getCurrentShiftInfo().shiftId
-                val workDateMillisToSave = overrideWorkDateMillis ?: ShiftManager.getCurrentShiftInfo().workDate.time
+                val currentShift = ShiftManager.getCurrentShiftInfo()
+                val shiftIdToSave = currentShift.shiftId
+                val workDateMillisToSave = currentShift.workDate.time
                 val nowMillis = Date().time
 
                 val localItem = MaintenanceItem(
@@ -209,7 +202,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     date = nowMillis,
                     isSynced = false, // Pendente de adição
                     shiftId = shiftIdToSave,
-                    workDateMillisFromServer = workDateMillisToSave
+                    workDateMillisFromServer = workDateMillisToSave,
+                    overtime = overtime
                 )
                 val localId = database.maintenanceDao().insertMaintenanceItem(localItem)
                 
@@ -229,6 +223,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     serviceObject.put("timestampLocal", Date(nowMillis))
                     serviceObject.put("shiftId", shiftIdToSave)
                     serviceObject.put("workDate", Date(workDateMillisToSave))
+                    serviceObject.put("overtime", overtime)
                     
                     if (uploadedUrls.isNotEmpty()) serviceObject.put("external_photos", uploadedUrls)
                     serviceObject.save()
