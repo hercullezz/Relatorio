@@ -77,8 +77,7 @@ class MainActivity : ComponentActivity() {
                     var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
                     
                     LaunchedEffect(Unit) {
-                        // URL do JSON de versão no seu GitHub (Troque pelo seu link real)
-                        val jsonUrl = "https://raw.githubusercontent.com/hercullezz/Relatorio/master/version.json"
+                        val jsonUrl = "https://raw.githubusercontent.com/hercullezz/Relatorio-Releases/main/version.json"
                         val info = updateManager.checkForUpdates(jsonUrl)
                         if (info != null && info.versionCode > BuildConfig.VERSION_CODE) {
                             updateInfo = info
