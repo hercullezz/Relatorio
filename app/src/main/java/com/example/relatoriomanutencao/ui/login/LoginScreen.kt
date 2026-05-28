@@ -23,6 +23,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
@@ -43,16 +46,13 @@ fun LoginScreen(
     var expanded by remember { mutableStateOf(false) }
     var passwordVisible by remember { mutableStateOf(false) }
 
-    LaunchedEffect(key1 = true) {
-        viewModel.refreshUsers()
-    }
-
     LaunchedEffect(uiState) {
         val state = uiState
         if (state is LoginUiState.Success) {
             onLoginSuccess()
         } else if (state is LoginUiState.Error) {
             snackbarHostState.showSnackbar(state.message)
+            viewModel.clearError()
         }
     }
 
@@ -184,15 +184,21 @@ fun LoginScreen(
                         Spacer(modifier = Modifier.height(16.dp))
 
                         // Senha
+                        val isPasswordError = uiState is LoginUiState.Error && viewModel.password.isBlank()
+
                         OutlinedTextField(
                             value = viewModel.password,
-                            onValueChange = { viewModel.password = it },
+                            onValueChange = { 
+                                viewModel.password = it 
+                                if (uiState is LoginUiState.Error) viewModel.clearError()
+                            },
                             label = { Text("Senha") },
+                            isError = isPasswordError,
                             leadingIcon = {
                                 Icon(
                                     Icons.Default.Lock,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary
+                                    tint = if (isPasswordError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                                 )
                             },
                             trailingIcon = {
@@ -204,6 +210,10 @@ fun LoginScreen(
                                 }
                             },
                             singleLine = true,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(
+                                onDone = { viewModel.login() }
+                            ),
                             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp)

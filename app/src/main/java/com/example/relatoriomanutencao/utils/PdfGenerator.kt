@@ -50,11 +50,11 @@ object PdfGenerator {
             var canvas = page.canvas
             var yPosition = MARGIN
 
-            val paintTitle = Paint().apply { textSize = 20f; typeface = Typeface.DEFAULT_BOLD; color = Color.BLACK }
-            val paintSubtitle = Paint().apply { textSize = 12f; color = Color.DKGRAY }
-            val paintSectionHeader = Paint().apply { textSize = 14f; typeface = Typeface.DEFAULT_BOLD; color = Color.rgb(0, 51, 102) }
-            val paintTextBold = Paint().apply { textSize = 10f; typeface = Typeface.DEFAULT_BOLD; color = Color.BLACK }
-            val paintTextNormal = Paint().apply { textSize = 10f; color = Color.BLACK }
+            val paintTitle = Paint().apply { textSize = 24f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD); color = Color.BLACK }
+            val paintSubtitle = Paint().apply { textSize = 14f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL); color = Color.DKGRAY }
+            val paintSectionHeader = Paint().apply { textSize = 16f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD); color = Color.rgb(0, 51, 102) }
+            val paintTextBold = Paint().apply { textSize = 12f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD); color = Color.BLACK }
+            val paintTextNormal = Paint().apply { textSize = 12f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL); color = Color.BLACK }
             val paintLine = Paint().apply { color = Color.LTGRAY; strokeWidth = 1f }
 
             val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
@@ -117,12 +117,12 @@ object PdfGenerator {
             }
 
             canvas.drawText("RELATÓRIO DIÁRIO DE MANUTENÇÃO", MARGIN, yPosition + 20, paintTitle)
-            yPosition += 35
+            yPosition += 45
             canvas.drawText("Data do Turno: $reportDate", MARGIN, yPosition, paintSubtitle)
             canvas.drawText("Turno: $shiftName", MARGIN + 250, yPosition, paintSubtitle)
-            yPosition += 15
-            canvas.drawLine(MARGIN, yPosition, PAGE_WIDTH - MARGIN, yPosition, paintLine)
             yPosition += 20
+            canvas.drawLine(MARGIN, yPosition, PAGE_WIDTH - MARGIN, yPosition, paintLine)
+            yPosition += 25
 
             // --- GRÁFICOS NO TOPO ---
             val graphItems = items.filter { it.serviceType == "Gráfico de Produção" }
@@ -132,9 +132,9 @@ object PdfGenerator {
 
             if (graphItems.isNotEmpty()) {
                 checkPageBreak(30f)
-                val paintBoldCenter = Paint().apply { textSize = 15f; typeface = Typeface.DEFAULT_BOLD; color = Color.rgb(0, 84, 166); textAlign = Paint.Align.CENTER }
+                val paintBoldCenter = Paint().apply { textSize = 17f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD); color = Color.rgb(0, 84, 166); textAlign = Paint.Align.CENTER }
                 canvas.drawText("GRÁFICOS DE PRODUÇÃO", PAGE_WIDTH / 2f, yPosition, paintBoldCenter)
-                yPosition += 25
+                yPosition += 30
                 
                 val graphHeight = 150f
                 val gap = 15f
@@ -166,33 +166,33 @@ object PdfGenerator {
                 checkPageBreak(40f)
                 val paintLineHeader = Paint().apply { color = Color.rgb(0, 84, 166) }
                 canvas.drawRect(MARGIN - 5, yPosition - 15, PAGE_WIDTH - MARGIN + 5, yPosition + 10, paintLineHeader)
-                val paintLineText = Paint().apply { textSize = 12f; typeface = Typeface.DEFAULT_BOLD; color = Color.WHITE }
+                val paintLineText = Paint().apply { textSize = 14f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD); color = Color.WHITE }
                 canvas.drawText(lineName.uppercase(), MARGIN + 5, yPosition, paintLineText)
-                yPosition += 30
+                yPosition += 35
 
                 val machinesGrouped = machines.groupBy { parseMachineName(it.machine).second }.toSortedMap()
                 
                 machinesGrouped.forEach { (machineOnly, maintenanceList) ->
                     checkPageBreak(30f)
                     val paintMachineHeader = Paint().apply { color = Color.rgb(245, 245, 245) }
-                    canvas.drawRect(MARGIN, yPosition - 12, PAGE_WIDTH - MARGIN, yPosition + 8, paintMachineHeader)
+                    canvas.drawRect(MARGIN, yPosition - 14, PAGE_WIDTH - MARGIN, yPosition + 8, paintMachineHeader)
                     canvas.drawText("MÁQUINA: $machineOnly", MARGIN + 5, yPosition, paintTextBold)
-                    yPosition += 25
+                    yPosition += 28
 
                     for (item in maintenanceList.reversed()) {
                         val descLines = breakTextIntoLines(item.description, paintTextNormal, CONTENT_WIDTH - 20)
                         val photoUris = item.photoUris.split(",").filter { it.isNotBlank() }.take(3)
                         val photosRowHeight = if (photoUris.isNotEmpty()) 120f else 0f
-                        checkPageBreak(30f + (descLines.size * 12f) + photosRowHeight)
+                        checkPageBreak(30f + (descLines.size * 18f) + photosRowHeight)
 
                         // Tipo de Serviço com destaque (Italac Red)
-                        val paintType = Paint().apply { textSize = 9f; typeface = Typeface.DEFAULT_BOLD; color = Color.rgb(238, 28, 37) }
+                        val paintType = Paint().apply { textSize = 11f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD); color = Color.rgb(238, 28, 37) }
                         canvas.drawText(item.serviceType.uppercase(), MARGIN + 10, yPosition, paintType)
-                        yPosition += 14
+                        yPosition += 18
                         
                         for (line in descLines) { 
                             canvas.drawText(line, MARGIN + 10, yPosition, paintTextNormal)
-                            yPosition += 12 
+                            yPosition += 18 
                         }
 
                         if (photoUris.isNotEmpty()) {

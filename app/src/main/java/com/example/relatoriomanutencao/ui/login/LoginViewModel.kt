@@ -58,9 +58,20 @@ class LoginViewModel : ViewModel() {
         }
     }
 
+    fun clearError() {
+        if (_uiState.value is LoginUiState.Error) {
+            _uiState.value = LoginUiState.Idle
+        }
+    }
+
     fun login() {
         val userToLogin = selectedUser ?: run {
             _uiState.value = LoginUiState.Error("Por favor, selecione um usuário.")
+            return
+        }
+
+        if (password.isBlank()) {
+            _uiState.value = LoginUiState.Error("Por favor, digite a senha.")
             return
         }
 
@@ -87,8 +98,12 @@ class LoginViewModel : ViewModel() {
                 }
 
             } catch (e: ParseException) {
-                // Erros de autenticação (senha errada, etc.) ou de rede são capturados aqui
-                _uiState.value = LoginUiState.Error(e.message ?: "Ocorreu um erro desconhecido.")
+                val errorMessage = when (e.code) {
+                    ParseException.OBJECT_NOT_FOUND -> "Usuário ou senha incorretos."
+                    ParseException.CONNECTION_FAILED -> "Sem conexão com a internet."
+                    else -> "Erro ao fazer login: ${e.message}"
+                }
+                _uiState.value = LoginUiState.Error(errorMessage)
             }
         }
     }

@@ -6,10 +6,13 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.parse.ParseACL
+import com.parse.ParseException
 import com.parse.ParseUser
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 // 1. Define os possíveis estados da UI para o cadastro
 sealed interface SignUpUiState {
@@ -33,6 +36,12 @@ class SignUpViewModel : ViewModel() {
     var confirmPassword by mutableStateOf("") // Novo campo para confirmação
     var selectedShift by mutableStateOf<Pair<String, Int>?>(null)
 
+    fun clearError() {
+        if (_uiState.value is SignUpUiState.Error) {
+            _uiState.value = SignUpUiState.Idle
+        }
+    }
+
     // 4. Função principal que a UI chamará para iniciar o cadastro
     fun signUp() {
         // Validação básica para garantir que todos os campos foram preenchidos
@@ -48,32 +57,48 @@ class SignUpViewModel : ViewModel() {
         }
 
         viewModelScope.launch {
-            _uiState.value = SignUpUiState.Loading // Muda o estado para Carregando
+            _uiState.value = SignUpUiState.Loading
 
             try {
                 val user = ParseUser()
-                user.username = username
-                user.email = email
+                user.username = username.trim()
+                user.email = email.trim()
                 user.setPassword(password)
-                user.put("name", name)
-                user.put("shiftId", selectedShift!!.second) // Usa o ID numérico do turno (corrigido para lowercase)
+                user.put("name", name.trim())
+                // O schema do Back4App tem DOIS campos de turno:
+                // - "ShiftId" (S maiúsculo) = required:true  → OBRIGATÓRIO
+                // - "shiftId" (s minúsculo) = required:false → opcional
+                // Ambos precisam ser enviados para o cadastro não ser rejeitado.
+                val shiftIdValue = selectedShift!!.second as Int
+                user.put("ShiftId", shiftIdValue)
+                user.put("shiftId", shiftIdValue)
 
-                user.put("isApproved", false) // O usuário começa como não aprovado
-                user.put("isAdmin", false)   // E também não é um admin
+                user.put("isApproved", false)
+                user.put("isAdmin", false)
 
-                // ** A CORREÇÃO DA ACL (LISTA DE CONTROLE DE ACESSO) **
                 val acl = ParseACL()
                 acl.publicReadAccess = true
                 user.acl = acl
 
-                // A chamada para o backend é assíncrona
-                user.signUp()
+                withContext(Dispatchers.IO) {
+                    user.signUp()
+                }
 
-                // Se a chamada acima não lançar exceção, o cadastro foi bem-sucedido
                 _uiState.value = SignUpUiState.Success
 
+            } catch (e: ParseException) {
+                android.util.Log.e("SignUpViewModel", "Parse error code=${e.code} msg=${e.message}")
+                val errorMessage = when (e.code) {
+                    ParseException.USERNAME_TAKEN      -> "Este usuário já está cadastrado."
+                    ParseException.EMAIL_TAKEN         -> "Este e-mail já está sendo usado."
+                    ParseException.CONNECTION_FAILED   -> "Sem conexão com a internet."
+                    ParseException.INVALID_QUERY       -> "Erro de configuração no servidor. Contate o administrador."
+                    142 /* VALIDATION_ERROR */         -> "Dados inválidos. Verifique o turno selecionado e tente novamente."
+                    else -> "Erro ao criar conta (${e.code}): ${e.message}"
+                }
+                _uiState.value = SignUpUiState.Error(errorMessage)
             } catch (e: Exception) {
-                // Se ocorrer um erro (ex: usuário já existe, sem internet), captura a exceção
+                android.util.Log.e("SignUpViewModel", "Generic error: ${e.message}", e)
                 _uiState.value = SignUpUiState.Error(e.message ?: "Ocorreu um erro desconhecido.")
             }
         }

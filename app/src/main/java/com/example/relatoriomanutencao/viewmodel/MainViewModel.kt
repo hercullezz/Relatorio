@@ -100,7 +100,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 ParseCloud.callFunction<Any>("adminApproveUser", mapOf("objectId" to objectId, "isApproved" to approve))
                 fetchUsersForAdmin()
-            } catch (e: Exception) { Log.e("MainViewModel", "Erro aprovar: ${e.message}") }
+                withContext(Dispatchers.Main) { Toast.makeText(getApplication(), if(approve) "Usuário aprovado com sucesso" else "Usuário reprovado", Toast.LENGTH_SHORT).show() }
+            } catch (e: Exception) { 
+                Log.e("MainViewModel", "Erro aprovar: ${e.message}") 
+                withContext(Dispatchers.Main) { Toast.makeText(getApplication(), "Erro: ${e.message}", Toast.LENGTH_SHORT).show() }
+            }
         }
     }
 
@@ -109,13 +113,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 ParseCloud.callFunction<Any>("adminToggleAdmin", mapOf("objectId" to objectId, "isAdmin" to makeAdmin))
                 fetchUsersForAdmin()
-            } catch (e: Exception) { Log.e("MainViewModel", "Erro admin toggle: ${e.message}") }
+                withContext(Dispatchers.Main) { Toast.makeText(getApplication(), if(makeAdmin) "Privilégios de Admin concedidos" else "Privilégios de Admin removidos", Toast.LENGTH_SHORT).show() }
+            } catch (e: Exception) { 
+                Log.e("MainViewModel", "Erro admin toggle: ${e.message}") 
+                withContext(Dispatchers.Main) { Toast.makeText(getApplication(), "Erro: ${e.message}", Toast.LENGTH_SHORT).show() }
+            }
         }
     }
 
     fun sendPasswordReset(email: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            try { com.parse.ParseUser.requestPasswordReset(email) } catch (e: Exception) { }
+            try { 
+                com.parse.ParseUser.requestPasswordReset(email) 
+                withContext(Dispatchers.Main) { Toast.makeText(getApplication(), "Link de redefinição enviado para $email", Toast.LENGTH_SHORT).show() }
+            } catch (e: Exception) { 
+                withContext(Dispatchers.Main) { Toast.makeText(getApplication(), "Erro: ${e.message}", Toast.LENGTH_SHORT).show() }
+            }
         }
     }
 
@@ -124,7 +137,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 ParseCloud.callFunction<Any>("adminDeleteUser", mapOf("objectId" to objectId))
                 fetchUsersForAdmin()
-            } catch (e: Exception) { Log.e("MainViewModel", "Erro deletar usuário: ${e.message}") }
+                withContext(Dispatchers.Main) { Toast.makeText(getApplication(), "Usuário excluído com sucesso", Toast.LENGTH_SHORT).show() }
+            } catch (e: Exception) { 
+                Log.e("MainViewModel", "Erro deletar usuário: ${e.message}") 
+                withContext(Dispatchers.Main) { Toast.makeText(getApplication(), "Erro ao excluir: ${e.message}", Toast.LENGTH_SHORT).show() }
+            }
         }
     }
     
@@ -260,11 +277,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     isPendingUpdate = originalItem.isSynced // Se já era sincronizado, agora está pendente de update
                 )
 
-                if (originalItem.id == 0L && originalItem.objectId != null) {
-                    // Item vindo da nuvem que ainda não estava no banco local
+                // localId: id definitivo para usar no markAsSynced
+                val localId: Long = if (originalItem.id == 0L && originalItem.objectId != null) {
+                    // Item vindo da nuvem que ainda não estava no banco local:
+                    // insertMaintenanceItem retorna o id gerado pelo Room
                     database.maintenanceDao().insertMaintenanceItem(updatedItem)
                 } else {
                     database.maintenanceDao().updateMaintenanceItem(updatedItem)
+                    originalItem.id
                 }
 
                 withContext(Dispatchers.Main) {
@@ -292,12 +312,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     parseObject.put("external_photos", existingLinks.filter { !it.contains("back4app") } + newUploadedUrls)
                     parseObject.save()
 
-                    // Sucesso: Marca como Sincronizado novamente
-                    val finalId = if (originalItem.id == 0L) {
-                        database.maintenanceDao().getPendingSyncItemsSync().find { it.objectId == objId }?.id ?: 0L
-                    } else originalItem.id
-
-                    if (finalId != 0L) database.maintenanceDao().markAsSynced(finalId, objId)
+                    // Sucesso: usa o localId capturado no insert/update acima — sem condição de corrida
+                    if (localId != 0L) database.maintenanceDao().markAsSynced(localId, objId)
                     withContext(Dispatchers.Main) { refreshMaintenanceList() }
                 }
             } catch (e: Exception) {

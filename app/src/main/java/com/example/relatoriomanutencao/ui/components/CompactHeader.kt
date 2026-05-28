@@ -28,10 +28,12 @@ fun CompactHeader(viewModel: MainViewModel, onLogout: () -> Unit) {
     val fullName   = user?.getString("name") ?: user?.username ?: ""
     val firstName  = fullName.trim().split(" ").firstOrNull() ?: fullName
     
-    // Tenta ler 'shiftId' (minúsculo). Se for 0, tenta 'ShiftId' (maiúsculo) para compatibilidade.
-    val userShiftId = user?.getInt("shiftId").let { id ->
-        if (id == null || id == 0) user?.getInt("ShiftId") ?: 0 else id
-    } 
+    // getNumber() é mais confiável que getInt() no Parse SDK:
+    // getInt() retorna 0 se o campo não existir no cache local,
+    // impossibilitando distinguir "não carregado" de "turno inválido".
+    val userShiftId = user?.getNumber("shiftId")?.toInt()
+        ?: user?.getNumber("ShiftId")?.toInt()
+        ?: 0
 
     // ── Estado do turno (reativo, atualiza a cada minuto) ───────────────────
     var shiftInfo      by remember { mutableStateOf(ShiftManager.getCurrentShiftInfo()) }

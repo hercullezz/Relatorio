@@ -64,7 +64,7 @@ fun AdminUserContent(
 private fun UserCard(user: ParseUser, viewModel: MainViewModel) {
     val context = LocalContext.current
     val name = user.getString("name") ?: user.username
-    val email = user.getString("email") ?: ""
+    val email = user.email ?: user.getString("email") ?: ""
     val isApproved = user.getBoolean("isApproved")
     val isAdmin = user.getBoolean("isAdmin")
     val createdAt = user.createdAt
@@ -74,6 +74,7 @@ private fun UserCard(user: ParseUser, viewModel: MainViewModel) {
 
     val objectId = try { user.objectId ?: user.getObjectId() } catch (e: Exception) { null }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showResetConfirm by remember { mutableStateOf(false) }
 
     if (showDeleteConfirm) {
         AlertDialog(
@@ -96,6 +97,30 @@ private fun UserCard(user: ParseUser, viewModel: MainViewModel) {
             },
             dismissButton = {
                 OutlinedButton(onClick = { showDeleteConfirm = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    if (showResetConfirm) {
+        AlertDialog(
+            onDismissRequest = { showResetConfirm = false },
+            icon = { Icon(Icons.Default.VpnKey, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+            title = { Text("Redefinir Senha") },
+            text = { Text("Deseja enviar um link de redefinição de senha para o e-mail $email?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.sendPasswordReset(email)
+                        showResetConfirm = false
+                    }
+                ) {
+                    Text("Enviar")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showResetConfirm = false }) {
                     Text("Cancelar")
                 }
             }
@@ -217,10 +242,7 @@ private fun UserCard(user: ParseUser, viewModel: MainViewModel) {
                 OutlinedButton(
                     onClick = {
                         if (email.isBlank()) Toast.makeText(context, "E-mail não disponível.", Toast.LENGTH_SHORT).show()
-                        else {
-                            viewModel.sendPasswordReset(email)
-                            Toast.makeText(context, "Reset enviado para $email", Toast.LENGTH_SHORT).show()
-                        }
+                        else showResetConfirm = true
                     },
                     modifier = Modifier.weight(1f, fill = false)
                 ) {

@@ -18,6 +18,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
@@ -49,6 +56,7 @@ fun SignUpScreen(
             }
             is SignUpUiState.Error -> {
                 snackbarHostState.showSnackbar(state.message)
+                viewModel.clearError()
             }
             else -> { /* Não faz nada para Idle ou Loading */ }
         }
@@ -149,40 +157,50 @@ private fun SignUpForm(
 ) {
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
 
     OutlinedTextField(
         value = viewModel.name,
-        onValueChange = { viewModel.name = it },
+        onValueChange = { viewModel.name = it; if (viewModel.uiState.value is SignUpUiState.Error) viewModel.clearError() },
         label = { Text("Nome Completo") },
         leadingIcon = { Icon(Icons.Default.Badge, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
+        keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(12.dp),
+        singleLine = true
     )
     Spacer(modifier = Modifier.height(12.dp))
 
     OutlinedTextField(
         value = viewModel.username,
-        onValueChange = { viewModel.username = it },
+        onValueChange = { viewModel.username = it; if (viewModel.uiState.value is SignUpUiState.Error) viewModel.clearError() },
         label = { Text("Usuário") },
         leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+        keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(12.dp),
+        singleLine = true
     )
     Spacer(modifier = Modifier.height(12.dp))
 
     OutlinedTextField(
         value = viewModel.email,
-        onValueChange = { viewModel.email = it },
+        onValueChange = { viewModel.email = it; if (viewModel.uiState.value is SignUpUiState.Error) viewModel.clearError() },
         label = { Text("E-mail") },
         leadingIcon = { Icon(Icons.Default.Email, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+        keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(12.dp),
+        singleLine = true
     )
     Spacer(modifier = Modifier.height(12.dp))
 
     OutlinedTextField(
         value = viewModel.password,
-        onValueChange = { viewModel.password = it },
+        onValueChange = { viewModel.password = it; if (viewModel.uiState.value is SignUpUiState.Error) viewModel.clearError() },
         label = { Text("Senha") },
         leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
         trailingIcon = {
@@ -193,15 +211,18 @@ private fun SignUpForm(
                 )
             }
         },
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+        keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
         visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(12.dp),
+        singleLine = true
     )
     Spacer(modifier = Modifier.height(12.dp))
 
     OutlinedTextField(
         value = viewModel.confirmPassword,
-        onValueChange = { viewModel.confirmPassword = it },
+        onValueChange = { viewModel.confirmPassword = it; if (viewModel.uiState.value is SignUpUiState.Error) viewModel.clearError() },
         label = { Text("Confirmar Senha") },
         leadingIcon = { Icon(Icons.Default.LockClock, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
         trailingIcon = {
@@ -212,9 +233,17 @@ private fun SignUpForm(
                 )
             }
         },
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { 
+            focusManager.clearFocus()
+            if (viewModel.name.isNotBlank() && viewModel.username.isNotBlank() && viewModel.email.isNotBlank() && viewModel.password.isNotBlank() && viewModel.confirmPassword.isNotBlank() && viewModel.selectedShift != null) {
+                onSignUpClick()
+            }
+        }),
         visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(12.dp),
+        singleLine = true
     )
     Spacer(modifier = Modifier.height(12.dp))
 

@@ -89,9 +89,12 @@ fun NewMaintenanceScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
 
     // ── Dados do usuário e controle de acesso ───────────────────────────────
     val user = ParseUser.getCurrentUser()
-    val userShiftId = user?.getInt("shiftId").let { id ->
-        if (id == null || id == 0) user?.getInt("ShiftId") ?: 0 else id
-    }
+    // getNumber() é mais confiável que getInt() no Parse SDK:
+    // getInt() retorna 0 se o campo não existir no cache local,
+    // impossibilitando distinguir "não carregado" de "turno inválido".
+    val userShiftId = user?.getNumber("shiftId")?.toInt()
+        ?: user?.getNumber("ShiftId")?.toInt()
+        ?: 0
     val userRole = user?.getString("role") ?: ""
     val isSupervisorOrAdmin = userRole == "Supervisor" || userRole == "Administrador"
 

@@ -93,8 +93,6 @@ Após o fim oficial do turno, o operário pode registrar/gerar PDF por mais **1 
 
 - [ ] Sistema de estoque integrado ao app
 - [ ] Relatórios consolidados completos (múltiplos dias/turnos)
-- [ ] Dashboards com gráficos de tendências
-- [ ] Auditoria completa (logs detalhados)
 
 ---
 
@@ -143,9 +141,10 @@ Após o fim oficial do turno, o operário pode registrar/gerar PDF por mais **1 
 5. **Deleção sempre lógica** (`deleted = true`)
 6. **Supervisor vê tudo**, Operário vê só o seu turno
 7. Qualquer mudança nos horários de turno → atualizar `BUSINESS_RULES.txt` + `conhecimento/logica_de_turnos.md`
+8. **Novo Release:** Sempre que solicitado um novo release, gerar o APK, nomeá-lo seguindo o padrão `app-vX.Y-release.apk` (ex: `app-v2.5-release.apk`) **e salvá-lo obrigatoriamente na raiz do projeto (`c:\Relatorio\`)**. Nunca salvar em subpastas como `app/build/` ou qualquer outro diretório.
 
 ---
 
-*Última atualização: 2026-05-13 | Versão do app: 2.2*
+*Última atualização: 2026-05-28 | Versão do app: 2.5*
 
 > **Arquivos removidos (conteúdo migrado para `conhecimento/`):** `ASSISTANCE.md`, `NEXT_STEPS.md`, `SHIFT_LOGIC_DOCUMENTATION.md`, `SUMARIO_EXECUTIVO_PROJETO.md`
