@@ -74,24 +74,26 @@ versionName = "2.0"     // Versão semântica visível ao usuário
 {
   "versionCode": 11,
   "versionName": "2.0",
-  "downloadUrl": "https://github.com/hercullezz/Relatorio/releases/download/v2.0/app-v2.0-release.apk",
+  "downloadUrl": "https://github.com/hercullezz/Relatorio-Releases/releases/download/v2.0/app-v2.0-release.apk",
   "releaseNotes": "Descrição das mudanças"
 }
 ```
 
-> ⚠️ Sempre manter os dois sincronizados! O app usa `version.json` para auto-update.
+> ⚠️ Sempre manter os dois sincronizados! O app busca o `version.json` a partir do repositório público **`Relatorio-Releases`** para realizar o auto-update.
 
 ---
 
 ## 5. Publicar Release no GitHub
 
-1. Buildar e assinar o APK release
-2. Renomear o APK para o padrão: `app-vX.X-release.apk`
-3. Criar tag no Git: `git tag v2.0 && git push origin v2.0`
-4. Criar Release no GitHub com a tag
-5. Fazer upload do APK renomeado como asset do release
-6. Atualizar `version.json` com a nova URL do download
-7. Commitar e fazer push do `version.json` atualizado
+As releases públicas são enviadas para o repositório público **`github.com/hercullezz/Relatorio-Releases`**:
+
+1. Buildar e assinar o APK release.
+2. Renomear o APK para o padrão: `app-vX.X-release.apk` (ex: `app-v2.5-release.apk`).
+3. Criar tag no Git local do projeto principal.
+4. No repositório público **`Relatorio-Releases`**, criar a tag/release correspondente.
+5. Fazer upload do APK renomeado como asset do release em **`Relatorio-Releases`**.
+6. Atualizar a URL em `version.json` apontando para o download no repositório de releases (ex: `https://github.com/hercullezz/Relatorio-Releases/releases/download/v2.5/app-v2.5-release.apk`).
+7. Fazer commit e push do `version.json` atualizado tanto no repositório principal quanto no repositório público **`Relatorio-Releases`** (onde o app busca).
 
 ### Histórico de APKs Publicados
 | Versão | versionCode | Arquivo |
@@ -105,8 +107,9 @@ versionName = "2.0"     // Versão semântica visível ao usuário
 
 ---
 
-## 6. Git e Repositório
+## 6. Git e Repositórios
 
-- **Repositório:** `github.com/hercullezz/Relatorio`
+- **Repositório de Código (Privado):** `github.com/hercullezz/Relatorio`
+- **Repositório de Releases (Público):** `github.com/hercullezz/Relatorio-Releases`
 - **Arquivos sensíveis no .gitignore:** `local.properties`, `google-services.json`, keystore passwords
 - `relatorio-release.jks` — verificar se está no `.gitignore` ou se é intencional tê-lo no repo

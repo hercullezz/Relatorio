@@ -43,6 +43,14 @@ class UpdateManager(private val context: Context) {
     }
 
     fun downloadAndInstall(updateInfo: UpdateInfo) {
+        val file = java.io.File(
+            context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS),
+            "update.apk"
+        )
+        if (file.exists()) {
+            file.delete()
+        }
+
         val request = DownloadManager.Request(Uri.parse(updateInfo.downloadUrl))
             .setTitle("Atualizando Relatório")
             .setDescription("Baixando nova versão...")
@@ -52,18 +60,30 @@ class UpdateManager(private val context: Context) {
             .setAllowedOverRoaming(true)
 
         val downloadId = downloadManager.enqueue(request)
+        val appContext = context.applicationContext
 
         val onComplete = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L)
                 if (id == downloadId) {
-                    installApk(context)
-                    context.unregisterReceiver(this)
+                    installApk(appContext)
+                    appContext.unregisterReceiver(this)
                 }
             }
         }
         
-        context.registerReceiver(onComplete, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            appContext.registerReceiver(
+                onComplete,
+                IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
+                Context.RECEIVER_EXPORTED
+            )
+        } else {
+            appContext.registerReceiver(
+                onComplete,
+                IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
+            )
+        }
     }
 
     private fun installApk(context: Context) {

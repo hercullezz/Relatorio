@@ -15,10 +15,11 @@
 | **Banco Local** | Room (SQLite) |
 | **Backend** | Parse Server |
 | **Geração de PDF** | PdfDocument Android nativo |
-| **Versão Atual** | 2.1 (versionCode 12) |
+| **Versão Atual** | 2.5 (versionCode 16) |
 | **Min SDK / Target SDK** | 26 / 36 |
-| **Repositório** | github.com/hercullezz/Relatorio |
-| **APK mais recente** | app-v2.1-release.apk |
+| **Repositório (Código)** | github.com/hercullezz/Relatorio (Privado) |
+| **Repositório (Releases)** | github.com/hercullezz/Relatorio-Releases (Público) |
+| **APK mais recente** | app-v2.5-release.apk |
 | **Estilo Visual** | "Industrial Premium" — dark mode, gradientes, glassmorphism |
 
 ---
@@ -141,7 +142,7 @@ Após o fim oficial do turno, o operário pode registrar/gerar PDF por mais **1 
 5. **Deleção sempre lógica** (`deleted = true`)
 6. **Supervisor vê tudo**, Operário vê só o seu turno
 7. Qualquer mudança nos horários de turno → atualizar `BUSINESS_RULES.txt` + `conhecimento/logica_de_turnos.md`
-8. **Novo Release:** Sempre que solicitado um novo release, gerar o APK, nomeá-lo seguindo o padrão `app-vX.Y-release.apk` (ex: `app-v2.5-release.apk`) **e salvá-lo obrigatoriamente na raiz do projeto (`c:\Relatorio\`)**. Nunca salvar em subpastas como `app/build/` ou qualquer outro diretório.
+8. **Novo Release:** Sempre que solicitado um novo release, gerar o APK, nomeá-lo seguindo o padrão `app-vX.Y-release.apk` (ex: `app-v2.5-release.apk`) **e salvá-lo obrigatoriamente na raiz do projeto (`c:\Relatorio\`)**. Nunca salvar em subpastas como `app/build/` ou qualquer outro diretório. Além disso, as releases públicas (arquivos APK e o `version.json` atualizado) devem ser publicados obrigatoriamente no repositório público **`github.com/hercullezz/Relatorio-Releases`**, enquanto o repositório principal `Relatorio` de código fonte deve permanecer privado para os usuários finais.
 
 ---
 
